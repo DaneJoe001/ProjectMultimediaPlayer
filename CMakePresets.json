@@ -1,0 +1,29 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 15,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "gcc-debug",
+            "displayName": "GCC Debug",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build/gcc-debug",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE":"/home/danejoe001/develop_environment/environment_cpp/vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_CXX_COMPILER": "/usr/local/bin/g++",
+                "CMAKE_PREFIX_PATH": "/usr/lib/x86_64-linux-gnu/cmake",
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "gcc-debug",
+            "configurePreset": "gcc-debug",
+            "jobs":8
+        }
+    ]
+}
