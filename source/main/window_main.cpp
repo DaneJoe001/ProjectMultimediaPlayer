@@ -15,6 +15,10 @@
 #include "renderer/sdl_frame_renderer.hpp"
 #include "util/util_vector_2d.hpp"
 #include "codec/av_frame_ptr.hpp"
+#include "main/decode_mp4.hpp"
+
+extern std::deque<AVFramePtr> frame_queue;
+extern std::mutex frame_queue_mutex;
 WindowMain::WindowMain(QWidget* parent) :QMainWindow(parent)
 {
     m_video_frame_size = { 400, 300 };
@@ -212,11 +216,24 @@ void WindowMain::timerEvent(QTimerEvent* event)
             }
         };
     yuv_file_test();
-    bool draw_1 = m_renderer_1->draw(m_frame_ptr);
-    if (!draw_1)
     {
-        DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
+        std::lock_guard<std::mutex> lock(frame_queue_mutex);
+        if (!frame_queue.empty())
+        {
+            auto frame = frame_queue.front();
+            frame_queue.pop_front();
+            bool draw_1 = m_renderer_1->draw(frame);
+            if (!draw_1)
+            {
+                DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
+            }
+        }
     }
+    // bool draw_1 = m_renderer_1->draw(m_frame_ptr);
+    // if (!draw_1)
+    // {
+    //     DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
+    // }
 }
 
 WindowMain::~WindowMain()

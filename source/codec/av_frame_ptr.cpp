@@ -5,14 +5,20 @@ AVFramePtr::AVFramePtr(int width, int height, AVPixelFormat format, int align)
     init(width, height, format, align);
 }
 
-AVFramePtr::AVFramePtr() {}
+AVFramePtr::AVFramePtr()
+{
+    /// @brief 创建AVFrame结构
+    /// @note 避免get()返回nullptr
+    m_frame = av_frame_alloc();
+}
 
 bool AVFramePtr::init(int width, int height, AVPixelFormat format, int align)
 {
     /// @todo 考虑当值不匹配时释放重构
     if (m_frame)
     {
-        return true;
+        /// @brief 释放AVFrame结构
+        av_frame_free(&m_frame);
     }
     /// @brief 分配一个AVFrame结构
     m_frame = av_frame_alloc();
