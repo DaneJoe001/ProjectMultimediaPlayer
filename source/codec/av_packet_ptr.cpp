@@ -16,7 +16,10 @@ AVPacketPtr::~AVPacketPtr()
 AVPacketPtr::AVPacketPtr(const AVPacketPtr& other)
 {
     m_packet = av_packet_alloc();
-    av_packet_ref(m_packet, other.m_packet);
+    if (m_packet && other.m_packet)
+    {
+        av_packet_ref(m_packet, other.m_packet);
+    }
 }
 
 AVPacketPtr::AVPacketPtr(AVPacketPtr&& other)
@@ -33,13 +36,19 @@ AVPacketPtr& AVPacketPtr::operator=(const AVPacketPtr& other)
     }
     if (m_packet)
     {
+        /// @brief 当自身结构存在时通过unref释放资源但保留frame结构本身
         av_packet_unref(m_packet);
     }
     else
     {
+        /// @brief 分配新的AVPacket结构
         m_packet = av_packet_alloc();
     }
-    av_packet_ref(m_packet, other.m_packet);
+    if (other.m_packet && m_packet)
+    {
+        av_packet_ref(m_packet, other.m_packet);
+    }
+    return *this;
 }
 
 AVPacketPtr& AVPacketPtr::operator=(AVPacketPtr&& other)
@@ -48,8 +57,14 @@ AVPacketPtr& AVPacketPtr::operator=(AVPacketPtr&& other)
     {
         return *this;
     }
+    /// @brief 当自身对象已被构建时先释放自身
+    if (m_packet)
+    {
+        av_packet_free(&m_packet);
+    }
     m_packet = other.m_packet;
     other.m_packet = nullptr;
+    return *this;
 }
 
 AVPacketPtr::operator bool()const

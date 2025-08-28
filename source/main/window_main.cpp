@@ -77,7 +77,7 @@ WindowMain::WindowMain(QWidget* parent) :QMainWindow(parent)
     m_frame->data = std::vector<uint8_t>(m_frame->size.x * m_frame->size.y * 4);
     m_frame->is_valid = true;
 
-    startTimer(1000 / 25);
+    startTimer(1000 / 100);
 }
 
 void WindowMain::resizeEvent(QResizeEvent* event)
@@ -220,12 +220,27 @@ void WindowMain::timerEvent(QTimerEvent* event)
         std::lock_guard<std::mutex> lock(frame_queue_mutex);
         if (!frame_queue.empty())
         {
-            auto frame = frame_queue.front();
+            auto frame = std::move(frame_queue.front());
             frame_queue.pop_front();
-            bool draw_1 = m_renderer_1->draw(frame);
-            if (!draw_1)
+            if (!frame)
             {
-                DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
+                DANEJOE_LOG_ERROR("debug", "Renderer", "frame is nullptr after pop, AVFramePtr addr={}, m_frame ptr=nullptr", (void*)&frame);
+            }
+            else
+            {
+                DANEJOE_LOG_TRACE("debug", "Renderer", "frame valid after pop, AVFramePtr addr={}, m_frame ptr={}, format={}", (void*)&frame, (void*)frame.get(), frame->format);
+            }
+            if (frame)
+            {
+                bool draw_1 = m_renderer_1->draw(frame);
+                if (!draw_1)
+                {
+                    // DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
+                }
+            }
+            else
+            {
+                DANEJOE_LOG_ERROR("default", "MainWindow", "{}", frame.get_error().message());
             }
         }
     }

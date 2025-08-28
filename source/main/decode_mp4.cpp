@@ -2,6 +2,7 @@
 #include "log/manage_logger.hpp"
 #include "codec/av_common.hpp"
 #include "codec/av_error.hpp"
+#include "codec/av_packet_ptr.hpp"
 
 extern "C"
 {
@@ -30,17 +31,17 @@ int decode_mp4(const std::string& file_path)
         return -1;
     }
     /// @brief 打开输入流并读取标头。编解码器未打开。流必须使用 avformat 关闭_关闭_input()
-    int ret = avformat_open_input(&ic, file_path.c_str(), nullptr, nullptr);
-    if (ret == 0)
+    AVError error = avformat_open_input(&ic, file_path.c_str(), nullptr, nullptr);
+    if (error == 0)
     {
         uint64_t duration = ic->duration;
 #if FFMPEG_VERSION>=771
         /// @brief 新增：探测流信息,不调用不能获取duration
-        ret = avformat_find_stream_info(ic, nullptr);
+        error = avformat_find_stream_info(ic, nullptr);
 #endif
-        if (ret < 0)
+        if (error.failed())
         {
-            DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
+            DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
             /// @brief 关闭输入流
             avformat_close_input(&ic);
             return -1;
@@ -80,16 +81,16 @@ int decode_mp4(const std::string& file_path)
                 /// @brief 创建解码器上下文
                 video_codec_context = avcodec_alloc_context3(codec);
                 /// @brief 将解码参数复制到解码器上下文
-                ret = avcodec_parameters_to_context(video_codec_context, stream->codecpar);
-                if (ret < 0)
+                error = avcodec_parameters_to_context(video_codec_context, stream->codecpar);
+                if (error.failed())
                 {
-                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
+                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
                     return -3;
                 }
-                ret = avcodec_open2(video_codec_context, codec, nullptr);
-                if (ret < 0)
+                error = avcodec_open2(video_codec_context, codec, nullptr);
+                if (error.failed())
                 {
-                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
+                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
                     return -2;
                 }
                 DANEJOE_LOG_TRACE("default", "Ffmpeg", "视频解码器名称：{}", codec->name);
@@ -99,22 +100,22 @@ int decode_mp4(const std::string& file_path)
         while (true)
         {
             /// @brief 视频压缩数据
-            AVPacket* packet = av_packet_alloc();
+            // AVPacket* packet = av_packet_alloc();
+            AVPacketPtr packet;
             if (!packet)
             {
                 DANEJOE_LOG_ERROR("default", "Ffmpeg", "无法分配AVPacket");
             }
             /// @brief 读取视频数据
-            ret = av_read_frame(ic, packet);
-            if (ret != 0)
+            error = av_read_frame(ic, packet.get());
+            if (error != 0)
             {
-                DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
+                DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
                 break;
             }
             /// @brief 添加此判断避免处理非视频流数据包
             if (packet->stream_index != video_stream_index)
             {
-                av_packet_unref(packet);
                 continue;
             }
             /// @brief 计算播放位置
@@ -126,44 +127,53 @@ int decode_mp4(const std::string& file_path)
 #endif
             /// @brief 解码队列接收数据包待解码
             /// @note 非传统意义异步方式
-            ret = avcodec_send_packet(video_codec_context, packet);
-            if (ret < 0)
+            error = avcodec_send_packet(video_codec_context, packet.get());
+            if (error.failed())
             {
-                DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
-                av_packet_free(&packet);
+                DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
+                // av_packet_free(&packet);
                 continue;
             }
             /// @brief 循环解码数据包队列，确保队列中的数据包全部解码完毕
-            while (ret >= 0)
+            while (error.ok())
             {
                 AVFramePtr frame;
+                frame.ensure_allocated();
                 /// @brief 获取解码后的数据帧
-                ret = avcodec_receive_frame(video_codec_context, frame.get());
-                if (ret >= 0)
+                error = avcodec_receive_frame(video_codec_context, frame.get());
+                if (error.ok())
                 {
                     DANEJOE_LOG_TRACE("default", "Decode", "Frame width: {}, height: {}", frame->width, frame->height);
                     {
                         std::lock_guard<std::mutex> lock(frame_queue_mutex);
+                        if (!frame)
+                        {
+                            DANEJOE_LOG_ERROR("debug", "Decode", "frame is nullptr before push, AVFramePtr addr={}, m_frame ptr=nullptr", (void*)&frame);
+                        }
+                        else
+                        {
+                            DANEJOE_LOG_TRACE("debug", "Decode", "frame valid before push, AVFramePtr addr={}, m_frame ptr={}, format={}", (void*)&frame, (void*)frame.get(), frame->format);
+                        }
                         frame_queue.push_back(std::move(frame));
                     }
                 }
                 /// @note EAGAIN 表示需要更多数据才能继续解码
                 /// @note AVERROR_EOF 表示数据包队列已空
-                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                if (error == AVERROR(EAGAIN) || error == AVERROR_EOF)
                 {
                     break;
                 }
-                else if (ret < 0)
+                else if (error.failed())
                 {
-                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
-                    av_packet_free(&packet);
+                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
+                    // av_packet_free(&packet);
                     continue;
                 }
             }
 
 
             /// @brief 释放数据包
-            av_packet_unref(packet);
+            // av_packet_unref(packet);
         }
         /// @brief 释放解码器上下文
         avcodec_free_context(&video_codec_context);
@@ -172,7 +182,7 @@ int decode_mp4(const std::string& file_path)
     }
     else
     {
-        DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(ret).error_msg());
+        DANEJOE_LOG_ERROR("default", "Ffmpeg", "错误信息: {}", AVError(error).message());
         DANEJOE_LOG_ERROR("default", "Ffmpeg", "视频打开失败！");
         /// @brief 释放内存
         avformat_free_context(ic);

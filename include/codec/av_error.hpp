@@ -17,13 +17,15 @@ extern "C"
 class AVError
 {
 public:
-    AVError(int error_code);
-
-    std::string error_msg();
-
-    int error_code()const;
-    operator bool()const;
-    bool operator==(int error_code);
+    AVError()noexcept;
+    AVError(int error_code)noexcept;
+    std::string message()const;
+    int code()const noexcept;
+    bool failed()const noexcept;
+    bool ok()const noexcept;
+    explicit operator bool()const noexcept;
+    AVError& operator=(int error_code)noexcept;
+    bool operator==(int error_code)const noexcept;
 
 private:
     int m_error_code;

@@ -5,132 +5,165 @@ AVFramePtr::AVFramePtr(int width, int height, AVPixelFormat format, int align)
     init(width, height, format, align);
 }
 
-AVFramePtr::AVFramePtr()
+AVFramePtr::AVFramePtr() noexcept
 {
-    /// @brief 创建AVFrame结构
-    /// @note 避免get()返回nullptr
-    m_frame = av_frame_alloc();
+    m_frame = nullptr;
+}
+AVError AVFramePtr::ensure_allocated() noexcept
+{
+    if (m_frame == nullptr)
+    {
+        m_frame = av_frame_alloc();
+        if (!m_frame)
+        {
+            m_error = AVError(AVERROR(ENOMEM));
+            return m_error;
+        }
+    }
+    m_error = AVError(0);
+    return m_error;
 }
 
-bool AVFramePtr::init(int width, int height, AVPixelFormat format, int align)
+AVError AVFramePtr::init(int width, int height, AVPixelFormat format, int align)
 {
-    /// @todo 考虑当值不匹配时释放重构
-    if (m_frame)
+    // 分配结构体
+    AVError alloc_err = ensure_allocated();
+    if (alloc_err.failed())
     {
-        /// @brief 释放AVFrame结构
-        av_frame_free(&m_frame);
+        return m_error;
     }
-    /// @brief 分配一个AVFrame结构
-    m_frame = av_frame_alloc();
-    if (m_frame)
+    av_frame_unref(m_frame);
+
+    m_frame->width = width;
+    m_frame->height = height;
+    m_frame->format = format;
+    m_error = av_frame_get_buffer(m_frame, align);
+    if (m_error.failed())
     {
-        /// @brief 分配AVFrame结构所使用的数据
-        m_frame->width = width;
-        m_frame->height = height;
-        m_frame->format = format;
-        /// @note align为0时，使用默认对齐方式
-        m_error_code = av_frame_get_buffer(m_frame, align);
-        /// @brief 错误处理
-        if (m_error_code < 0)
-        {
-            /// @brief 释放AVFrame结构所使用的数据
-            av_frame_free(&m_frame);
-            m_frame = nullptr;
-        }
-        switch (m_frame->format)
-        {
-        case AV_PIX_FMT_YUV420P:
-            m_frame->linesize[0] = width;
-            m_frame->linesize[1] = width / 2;
-            m_frame->linesize[2] = width / 2;
-            break;
-        case AV_PIX_FMT_YUVJ420P:
-            // m_fmt = FrameFmt::YUVJ420P;
-            break;
-        case AV_PIX_FMT_YUV422P:
-            // m_fmt = FrameFmt::YUV422P;
-        default:break;
-        }
+        return m_error;
     }
-    else
+    switch (m_frame->format)
     {
-        m_error_code = AVERROR(ENOMEM);
-        return false;
+    case AV_PIX_FMT_YUV420P:
+        m_frame->linesize[0] = width;
+        m_frame->linesize[1] = width / 2;
+        m_frame->linesize[2] = width / 2;
+        break;
+    case AV_PIX_FMT_YUVJ420P:
+        break;
+    case AV_PIX_FMT_YUV422P:
+    default:
+        break;
     }
-    return true;
+    return m_error;
 }
+
 AVFramePtr::AVFramePtr(const AVFramePtr& frame)
 {
-    /// @brief 判断源是否有效
-    if (frame.get())
+    if (!frame.get())
     {
-        /// @brief 分配新的AVFrame结构
-        m_frame = av_frame_alloc();
-        /// @brief 分配成功的情况下引用计数加1
-        if (m_frame)
-        {
-            /// @brief 引用计数加1
-            m_error_code = av_frame_ref(m_frame, frame.get());
-        }
+        m_frame = nullptr;
+        m_error = frame.m_error;
+        return;
+    }
+    m_frame = av_frame_alloc();
+    if (!m_frame)
+    {
+        m_error = AVError(AVERROR(ENOMEM));
+        return;
+    }
+    m_error = av_frame_ref(m_frame, frame.get());
+    if (m_error)
+    {
+        av_frame_free(&m_frame);
     }
 }
-AVFramePtr::AVFramePtr(AVFramePtr&& frame) :m_frame(frame.get())
+
+// 移动构造：转移指针与错误状态，源清空
+AVFramePtr::AVFramePtr(AVFramePtr&& frame) noexcept : m_frame(frame.get())
 {
-    /// @brief 清理源
-    m_error_code = frame.m_error_code;
+    m_error = frame.m_error;
     frame.m_frame = nullptr;
 }
+
+// 拷贝赋值：强异常安全，先构造临时再替换当前对象
 AVFramePtr& AVFramePtr::operator=(const AVFramePtr& frame)
 {
-    /// @brief 判断源是否为自身
     if (this == &frame)
     {
         return *this;
     }
-    /// @brief 当自身对象已存在时，先释放
-    if (m_frame)
-    {
-        av_frame_free(&m_frame);
-    }
-    /// @brief 判断源是否有效
+    AVFrame* new_frame = nullptr;
+    AVError new_error;
     if (frame.get())
     {
-        /// @brief 分配新的AVFrame结构
-        m_frame = av_frame_alloc();
-        /// @brief 分配成功的情况下引用计数加1
-        if (m_frame)
+        new_frame = av_frame_alloc();
+        if (!new_frame)
         {
-            /// @brief 引用计数加1
-            m_error_code = av_frame_ref(m_frame, frame.get());
+            return *this; // 分配失败，不改变当前对象
+        }
+        new_error = av_frame_ref(new_frame, frame.get());
+        if (new_error)
+        {
+            av_frame_free(&new_frame);
+            return *this; // 引用失败，不改变当前对象
         }
     }
+    // 生效替换（先释放旧的再接管新的）
+    av_frame_free(&m_frame);
+    m_frame = new_frame;
+    m_error = frame.m_error;
     return *this;
 }
 
-AVFramePtr& AVFramePtr::operator=(AVFramePtr&& frame)
+// 移动赋值：释放当前资源并接管源（noexcept）
+AVFramePtr& AVFramePtr::operator=(AVFramePtr&& frame) noexcept
 {
     if (this == &frame)
     {
         return *this;
     }
-    /// @brief 当自身对象已被构建时先释放自身
     if (m_frame)
     {
         av_frame_free(&m_frame);
     }
     m_frame = frame.get();
+    m_error = frame.m_error;
     frame.m_frame = nullptr;
     return *this;
 }
-AVFrame* AVFramePtr::get()const
+
+AVFrame* AVFramePtr::get() noexcept
 {
     return m_frame;
 }
-AVFrame* AVFramePtr::operator->()const
+
+const AVFrame* AVFramePtr::get() const noexcept
 {
     return m_frame;
 }
-AVFramePtr::~AVFramePtr()
+
+AVFrame* AVFramePtr::operator->() noexcept
+{
+    return m_frame;
+}
+
+const AVFrame* AVFramePtr::operator->() const noexcept
+{
+    return m_frame;
+}
+
+AVFrame& AVFramePtr::operator*() noexcept
+{
+    return *m_frame;
+}
+
+const AVFrame& AVFramePtr::operator*() const noexcept
+{
+    return *m_frame;
+}
+
+AVFramePtr::~AVFramePtr() noexcept
 {
     if (m_frame)
     {
@@ -138,27 +171,50 @@ AVFramePtr::~AVFramePtr()
     }
 }
 
-int AVFramePtr::error_code()const
-{
-    return m_error_code;
-}
-
-std::string AVFramePtr::error_msg()
-{
-    av_strerror(m_error_code, reinterpret_cast<char*>(m_error_buffer.data()), m_error_buffer.size());
-    return  std::string(reinterpret_cast<char*>(m_error_buffer.data()));
-}
-
-AVFramePtr::operator bool()const
+AVFramePtr::operator bool() const noexcept
 {
     return m_frame != nullptr;
 }
 
-std::size_t AVFramePtr::use_count()const
+AVError AVFramePtr::get_error() const noexcept
+{
+    return m_error;
+}
+
+std::size_t AVFramePtr::use_count() const noexcept
+{
+    if (m_frame && m_frame->buf[0])
+    {
+        return static_cast<std::size_t>(av_buffer_get_ref_count(m_frame->buf[0]));
+    }
+    return 0;
+}
+
+void AVFramePtr::reset() noexcept
 {
     if (m_frame)
     {
-        return av_buffer_get_ref_count(m_frame->buf[0]);
+        av_frame_free(&m_frame);
     }
-    return 0;
+}
+
+void AVFramePtr::unref() noexcept
+{
+    if (m_frame)
+    {
+        av_frame_unref(m_frame);
+    }
+}
+
+AVFrame* AVFramePtr::release() noexcept
+{
+    AVFrame* ptr = m_frame;
+    m_frame = nullptr;
+    return ptr;
+}
+
+void AVFramePtr::swap(AVFramePtr& other) noexcept
+{
+    std::swap(m_frame, other.m_frame);
+    std::swap(m_error, other.m_error);
 }
