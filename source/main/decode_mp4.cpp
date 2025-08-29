@@ -138,7 +138,7 @@ int decode_mp4(const std::string& file_path)
             while (error.ok())
             {
                 AVFramePtr frame;
-                frame.ensure_allocated();
+                // frame.ensure_allocated();
                 /// @brief 获取解码后的数据帧
                 error = avcodec_receive_frame(video_codec_context, frame.get());
                 if (error.ok())
