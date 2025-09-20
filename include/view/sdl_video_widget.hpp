@@ -5,25 +5,26 @@
 #include <fstream>
 #include <chrono>
 
-#include <QMainWindow>
 #include <QWidget>
-#include <QLabel>
-#include <QHBoxLayout>
 
 #include <SDL2/SDL.h>
 
 #include "renderer/i_frame_renderer.hpp"
 #include "codec/av_frame_ptr.hpp"
+#include "mt_queue/mt_queue.hpp"
 
 /// @brief 前向声明
 class IFrameRenderer;
+class QVBoxLayout;
+class QLabel;
+
 
 /**
  * @class WindowMain
  * @brief 主窗口
  * @note 主窗口
   */
-class WindowMain :public QMainWindow
+class SDLVideoWidget :public QWidget
 {
     Q_OBJECT
 public:
@@ -31,13 +32,15 @@ public:
      * @brief 构造函数
      * @param parent 父窗口
      */
-    explicit WindowMain(QWidget* parent = nullptr);
+    explicit SDLVideoWidget(QWidget* parent = nullptr);
     /**
      * @brief 析构函数
      * @note 释放资源
      */
-    ~WindowMain();
+    ~SDLVideoWidget();
+    void init();
     void sleep(std::chrono::milliseconds ms);
+    std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> get_frame_queue();
 private:
     /**
      * @brief 定时器事件
@@ -60,21 +63,16 @@ private:
      */
     void closeEvent(QCloseEvent* event)override;
 private:
-    AVFramePtr m_frame_ptr;
-    /// @brief 帧信息
-    std::shared_ptr<IFrameRenderer::Frame> m_frame;
     /// @brief 渲染器
-    std::shared_ptr<IFrameRenderer> m_renderer_1 = nullptr;
+    std::shared_ptr<IFrameRenderer> m_renderer = nullptr;
     /// @brief SDL标签
-    QLabel* m_label_sdl_1;
+    QLabel* m_sdl_label;
     /// @brief 视频帧率
     uint8_t m_video_rate = 25;
-    /// @brief 视频文件
-    std::ifstream m_video_file;
     /// @brief 视频帧大小
-    DaneJoe::Size<int> m_video_frame_size;
-    /// @brief 窗口标签容器
-    QWidget* m_labels_container;
-    /// @brief 窗口标签布局
-    QHBoxLayout* m_labels_layout;
+    DaneJoe::Size<int> m_video_frame_size = { 400, 300 };
+    /// @brief 窗口布局
+    QVBoxLayout* m_main_layout;
+    /// @brief 帧队列
+    std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> m_frame_queue;
 };

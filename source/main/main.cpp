@@ -12,8 +12,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "main/window_main.hpp"
-#include "main/window_main_opengl.hpp"
+#include "view/sdl_video_widget.hpp"
 #include "log/manage_logger.hpp"
 #include "main/decode_mp4.hpp"
 
@@ -26,13 +25,11 @@ int main(int argc, char* argv[])
 {
     init_logger();
 
-    std::jthread decode_thread(decode_mp4, "/home/danejoe001/personal_code/code_cpp_project/cpp_project_multimedia/resource/400_300_25.mp4");
-
     QApplication a(argc, argv);
-
-    // WindowMainOpenGL w;
-    WindowMain w;
-
+    SDLVideoWidget w;
+    w.init();
+    auto frame_queue = w.get_frame_queue();
+    std::jthread decode_thread(decode_mp4, "/home/danejoe001/personal_code/code_cpp_project/cpp_project_multimedia/resource/400_300_25.mp4", frame_queue);
     w.show();
     return a.exec();
 }

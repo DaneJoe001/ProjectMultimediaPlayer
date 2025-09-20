@@ -57,9 +57,9 @@ void SDL_texture_deleter::operator()(SDL_Texture* texture)const
     }
 }
 
-SDLFrameRenderer::SDLFrameRenderer(DaneJoe::ILogger::LoggerConfig logger_config) :IFrameRenderer(logger_config) {}
+SDLFrameRenderer::SDLFrameRenderer(){}
 
-SDLFrameRenderer::SDLFrameRenderer(std::string window_name, DaneJoe::Size<int> window_size, void* window, DaneJoe::ILogger::LoggerConfig logger_config) :IFrameRenderer(logger_config)
+SDLFrameRenderer::SDLFrameRenderer(std::string window_name, DaneJoe::Size<int> window_size, void* window)
 {
     /// @brief 确保窗口大小合法
     m_window_size = window_size.quadrant() == DaneJoe::Size<int>::Quadrant::FIRST ? window_size : m_default_size;

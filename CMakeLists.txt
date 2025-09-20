@@ -11,6 +11,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 file(GLOB SOURCES 
+    "include/view/*.hpp"
     "source/renderer/*.cpp" 
     "source/util/*.cpp"
     "source/codec/*.cpp"
@@ -28,9 +29,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 set(MOC_HEADERS
-    include/main/window_main.hpp
-    include/main/window_main_opengl.hpp
-    include/view/qt_video_widget.hpp
+    include/view/sdl_video_widget.hpp
+    include/view/opengl_video_widget.hpp
+    include/view/main_window.hpp
 )
 
 qt6_wrap_cpp(MOC_SOURCES ${MOC_HEADERS})

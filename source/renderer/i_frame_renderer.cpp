@@ -2,11 +2,7 @@
 
 #include "renderer/i_frame_renderer.hpp"
 
-IFrameRenderer::IFrameRenderer(DaneJoe::ILogger::LoggerConfig logger_config) :m_logger_config(logger_config)
-{
-    /// @brief 初始化日志系统
-    DaneJoe::ManageLogger::get_instance().add_logger("default", m_logger_config);
-}
+IFrameRenderer::IFrameRenderer() {}
 
 IFrameRenderer::~IFrameRenderer() {}
 
@@ -48,7 +44,7 @@ void IFrameRenderer::set_dest_pos(const DaneJoe::Pos<int>& pos)
 bool IFrameRenderer::set_dest_size(const DaneJoe::Size<int>& size)
 {
     std::lock_guard<std::mutex> lock(m_dest_size_mutex);
-    /// @brief 当前不考虑size的合法性，将不合法参数当默认配置处理
+    // 当前不考虑size的合法性，将不合法参数当默认配置处理
     m_dest_size = size;
     return true;
 }

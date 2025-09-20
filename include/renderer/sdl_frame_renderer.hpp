@@ -74,11 +74,11 @@ public:
      * @param window 窗口
      * @param window_size 窗口大小
      */
-    SDLFrameRenderer(std::string window_name, DaneJoe::Size<int> window_size, void* window, DaneJoe::ILogger::LoggerConfig logger_config);
+    SDLFrameRenderer(std::string window_name, DaneJoe::Size<int> window_size, void* window);
     /**
      * @brief 构造函数
      */
-    SDLFrameRenderer(DaneJoe::ILogger::LoggerConfig logger_config);
+    SDLFrameRenderer();
     /**
      * @brief 析构函数
      */

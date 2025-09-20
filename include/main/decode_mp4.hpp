@@ -8,5 +8,6 @@
 #include <thread>
 
 #include "codec/av_frame_ptr.hpp"
+#include "mt_queue/mt_queue.hpp"
 
-int decode_mp4(const std::string& file_path);
+int decode_mp4(const std::string& file_path, std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> frame_queue);

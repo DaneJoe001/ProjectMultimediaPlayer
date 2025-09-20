@@ -6,12 +6,12 @@
 
 #include "log/manage_logger.hpp"
 
-class QtVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
+class OpenGLVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    QtVideoWidget(QWidget* parent = nullptr);
-    ~QtVideoWidget();
+    OpenGLVideoWidget(QWidget* parent = nullptr);
+    ~OpenGLVideoWidget();
 protected:
     void initializeGL() override;
     void paintGL() override;

@@ -54,7 +54,7 @@ public:
         void init_info();
     };
 public:
-    IFrameRenderer(DaneJoe::ILogger::LoggerConfig logger_config);
+    IFrameRenderer();
     /**
      * @brief 获取错误码
      */
@@ -154,6 +154,4 @@ protected:
     std::mutex m_raw_frame_size_mutex;
     /// @brief 错误码
     std::atomic<int> m_error_code = 0;
-    /// @brief 日志配置
-    DaneJoe::ILogger::LoggerConfig m_logger_config;
 };

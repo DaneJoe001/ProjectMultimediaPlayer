@@ -1,4 +1,4 @@
-#include "view/qt_video_widget.hpp"
+#include "view/opengl_video_widget.hpp"
 
 // 顶点着色器 - 处理每个顶点的位置和纹理坐标
 const char* v_string = R"(
@@ -99,12 +99,12 @@ const char* t_string = R"(
     }
 )";
 
-QtVideoWidget::QtVideoWidget(QWidget* parent) :QOpenGLWidget(parent)
+OpenGLVideoWidget::OpenGLVideoWidget(QWidget* parent) :QOpenGLWidget(parent)
 {
 }
-QtVideoWidget::~QtVideoWidget() {}
+OpenGLVideoWidget::~OpenGLVideoWidget() {}
 
-void QtVideoWidget::initializeGL()
+void OpenGLVideoWidget::initializeGL()
 {
     DANEJOE_LOG_TRACE("default", "QtOpenGL", "initializeGL");
     /// @brief 初始化OpenGL函数(QOpenGLFunctions继承)
@@ -116,22 +116,25 @@ void QtVideoWidget::initializeGL()
     qDebug() << m_program.addShaderFromSourceCode(QOpenGLShader::Fragment, t_string);
     /// @note 顶点着色器
     qDebug() << m_program.addShaderFromSourceCode(QOpenGLShader::Vertex, v_string);
-    
+
     /// @brief 链接着色器程序
-    if (!m_program.link()) {
+    if (!m_program.link())
+    {
         qDebug() << "Failed to link shader program:" << m_program.log();
-    } else {
+    }
+    else
+    {
         qDebug() << "Shader program linked successfully";
     }
     qDebug() << "=======end======";
 }
 
-void QtVideoWidget::paintGL()
+void OpenGLVideoWidget::paintGL()
 {
     DANEJOE_LOG_TRACE("default", "QtOpenGL", "paintGL");
 }
 
-void QtVideoWidget::resizeGL(int w, int h)
+void OpenGLVideoWidget::resizeGL(int w, int h)
 {
     DANEJOE_LOG_TRACE("default", "QtOpenGL", "resizeGL: width{} height{}", w, h);
 }
