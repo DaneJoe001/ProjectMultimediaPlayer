@@ -71,7 +71,13 @@
         "codecvt": "cpp",
         "qmessagebox": "cpp",
         "qdebug": "cpp",
-        "qpixmap": "cpp"
+        "qpixmap": "cpp",
+        "source_location": "cpp",
+        "typeindex": "cpp",
+        "qopenglcontext": "cpp",
+        "qopenglwidget": "cpp",
+        "qopenglshaderprogram": "cpp",
+        "shared_mutex": "cpp"
     },
     "commentTranslate.source": "Bing"
 }

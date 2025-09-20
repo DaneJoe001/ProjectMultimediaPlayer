@@ -3,6 +3,7 @@
 #include "codec/av_common.hpp"
 #include "codec/av_error.hpp"
 #include "codec/av_packet_ptr.hpp"
+#include "mt_queue/mt_queue.hpp"
 
 extern "C"
 {
@@ -10,10 +11,10 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libavutil/time.h>
 #include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
 }
 
-std::deque<AVFramePtr> frame_queue;
-std::mutex frame_queue_mutex;
+DaneJoe::MTQueue<AVFramePtr> frame_queue(500);
 
 int decode_mp4(const std::string& file_path)
 {
@@ -52,9 +53,54 @@ int decode_mp4(const std::string& file_path)
 
         /// @brief 视频流下标
         int video_stream_index = 0;
+        int audio_stream_index = 0;
+
+#ifdef REFERENCE
+
+        //==================================================
+
+        AVCodec* acodec = avcodec_find_decoder(ic->streams[audio_stream_index]->codecpar->codec_id);
+
+        AVCodecContext* audio_codec_context = avcodec_alloc_context3()
+
+            /// @brief 音频解码器上下文
+            SwrContext * swr_context = swr_alloc();
+
+        // 设置输出参数
+        int out_channels = 2; // 输出通道数
+        int out_sample_rate = ic->sample_rate; // 输出采样率
+        enum AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16; // 输出样本格式
+
+        // 设置输入参数
+        int in_channels = ac->channels; // 输入通道数
+        int in_sample_rate = ac->sample_rate; // 输入采样率
+        enum AVSampleFormat in_sample_fmt = ac->sample_fmt; // 输入样本格式
+
+        // 配置 SwrContext
+        av_opt_set_int(actx, "in_channel_count", in_channels, 0);
+        av_opt_set_int(actx, "out_channel_count", out_channels, 0);
+        av_opt_set_int(actx, "in_sample_rate", in_sample_rate, 0);
+        av_opt_set_int(actx, "out_sample_rate", out_sample_rate, 0);
+        av_opt_set_sample_fmt(actx, "in_sample_fmt", in_sample_fmt, 0);
+        av_opt_set_sample_fmt(actx, "out_sample_fmt", out_sample_fmt, 0);
+        av_opt_set_int(actx, "out_channel_layout", AV_CHANNEL_LAYOUT_STEREO, 0); // 输出通道布局
+
+        // 初始化 SwrContext
+        if (swr_init(actx) < 0)
+        {
+            // 错误处理
+            swr_free(&actx);
+            return -1;
+        }
+
+        //===========================================
+#endif
 
         /// @brief 视频解码器上下文 
         AVCodecContext* video_codec_context = nullptr;
+        /// @brief 音频解码器上下文
+        AVCodecContext* audio_codec_context = nullptr;
+
         /// @brief 遍历媒体流
         for (int i = 0;i < ic->nb_streams;i++)
         {
@@ -95,6 +141,17 @@ int decode_mp4(const std::string& file_path)
                 }
                 DANEJOE_LOG_TRACE("default", "Ffmpeg", "视频解码器名称：{}", codec->name);
             }
+            else if (codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+            {
+                audio_stream_index = i;
+                const AVCodec* acodec = avcodec_find_decoder(codecpar->codec_id);
+                if (!acodec)
+                {
+                    DANEJOE_LOG_ERROR("default", "Ffmpeg", "无法找到音频解码器！");
+                    return -1;
+                }
+                audio_codec_context = avcodec_alloc_context3(acodec);
+            }
         }
         /// @brief 循环计算每一帧的播放位置
         while (true)
@@ -102,6 +159,7 @@ int decode_mp4(const std::string& file_path)
             /// @brief 视频压缩数据
             // AVPacket* packet = av_packet_alloc();
             AVPacketPtr packet;
+            packet.ensure_allocated();
             if (!packet)
             {
                 DANEJOE_LOG_ERROR("default", "Ffmpeg", "无法分配AVPacket");
@@ -138,29 +196,23 @@ int decode_mp4(const std::string& file_path)
             while (error.ok())
             {
                 AVFramePtr frame;
-                // frame.ensure_allocated();
+                frame.ensure_allocated();
                 /// @brief 获取解码后的数据帧
                 error = avcodec_receive_frame(video_codec_context, frame.get());
                 if (error.ok())
                 {
                     DANEJOE_LOG_TRACE("default", "Decode", "Frame width: {}, height: {}", frame->width, frame->height);
-                    {
-                        std::lock_guard<std::mutex> lock(frame_queue_mutex);
-                        if (!frame)
-                        {
-                            DANEJOE_LOG_ERROR("debug", "Decode", "frame is nullptr before push, AVFramePtr addr={}, m_frame ptr=nullptr", (void*)&frame);
-                        }
-                        else
-                        {
-                            DANEJOE_LOG_TRACE("debug", "Decode", "frame valid before push, AVFramePtr addr={}, m_frame ptr={}, format={}", (void*)&frame, (void*)frame.get(), frame->format);
-                        }
-                        frame_queue.push_back(std::move(frame));
-                    }
+                    frame_queue.push(std::move(frame));
                 }
                 /// @note EAGAIN 表示需要更多数据才能继续解码
                 /// @note AVERROR_EOF 表示数据包队列已空
-                if (error == AVERROR(EAGAIN) || error == AVERROR_EOF)
+                if (error == AVERROR(EAGAIN))
                 {
+                    break;
+                }
+                else if (error == AVERROR_EOF)
+                {
+                    DANEJOE_LOG_INFO("default", "Ffmpeg", "AVERROR_EOF");
                     break;
                 }
                 else if (error.failed())
@@ -170,11 +222,45 @@ int decode_mp4(const std::string& file_path)
                     continue;
                 }
             }
-
-
             /// @brief 释放数据包
             // av_packet_unref(packet);
         }
+
+#ifdef TEST_AV_SEEK
+        auto video_stream = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+        AVPacketPtr packet;
+        packet.ensure_allocated();
+        int times = 1000;
+        while (true)
+        {
+            AVError error = av_read_frame(ic, packet.get());
+            times--;
+            if (times == 0 && error.ok())
+            {
+                int time = 3000;
+                long long pos = (double)time / (double)1000 * AVRationalInfo(ic->streams[packet->stream_index]->time_base).get_double();
+                DANEJOE_LOG_TRACE("default", "Ffmpeg", "pos: {}", pos);
+                av_seek_frame(ic, video_stream, pos, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME);
+            }
+            if (error.failed())
+            {
+                break;
+            }
+            DANEJOE_LOG_TRACE("default", "Ffmpeg", "packet size:{}", packet->size);
+            DANEJOE_LOG_TRACE("default", "Ffmpeg", "packet pts:{}", packet->pts);
+            DANEJOE_LOG_TRACE("default", "Ffmpeg", "packet dts:{}", packet->dts);
+            if (packet->stream_index == video_stream_index)
+            {
+                DANEJOE_LOG_TRACE("default", "Ffmpeg", "Video packet");
+            }
+            else if (packet->stream_index == audio_stream_index)
+            {
+                DANEJOE_LOG_TRACE("default", "Ffmpeg", "Audio packet");
+            }
+            packet.unref();
+        }
+#endif
+
         /// @brief 释放解码器上下文
         avcodec_free_context(&video_codec_context);
         /// @brief 关闭输入流

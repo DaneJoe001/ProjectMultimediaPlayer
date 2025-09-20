@@ -10,15 +10,15 @@
 #include "log/i_logger.hpp"
 #include "log/manage_logger.hpp"
 
-#include "main/window_main.h"
+#include "main/window_main.hpp"
 #include "renderer/i_frame_renderer.hpp"
 #include "renderer/sdl_frame_renderer.hpp"
 #include "util/util_vector_2d.hpp"
 #include "codec/av_frame_ptr.hpp"
 #include "main/decode_mp4.hpp"
+#include "mt_queue/mt_queue.hpp"
 
-extern std::deque<AVFramePtr> frame_queue;
-extern std::mutex frame_queue_mutex;
+extern DaneJoe::MTQueue<AVFramePtr> frame_queue;
 WindowMain::WindowMain(QWidget* parent) :QMainWindow(parent)
 {
     m_video_frame_size = { 400, 300 };
@@ -77,7 +77,12 @@ WindowMain::WindowMain(QWidget* parent) :QMainWindow(parent)
     m_frame->data = std::vector<uint8_t>(m_frame->size.x * m_frame->size.y * 4);
     m_frame->is_valid = true;
 
-    startTimer(1000 / 100);
+    startTimer(1000 / 25);
+}
+
+void WindowMain::closeEvent(QCloseEvent* event)
+{
+    frame_queue.close();
 }
 
 void WindowMain::resizeEvent(QResizeEvent* event)
@@ -217,38 +222,21 @@ void WindowMain::timerEvent(QTimerEvent* event)
         };
     yuv_file_test();
     {
-        std::lock_guard<std::mutex> lock(frame_queue_mutex);
-        if (!frame_queue.empty())
+        auto data = frame_queue.try_pop();
+        if (data.has_value())
         {
-            auto frame = std::move(frame_queue.front());
-            frame_queue.pop_front();
-            if (!frame)
-            {
-                DANEJOE_LOG_ERROR("debug", "Renderer", "frame is nullptr after pop, AVFramePtr addr={}, m_frame ptr=nullptr", (void*)&frame);
-            }
-            else
-            {
-                DANEJOE_LOG_TRACE("debug", "Renderer", "frame valid after pop, AVFramePtr addr={}, m_frame ptr={}, format={}", (void*)&frame, (void*)frame.get(), frame->format);
-            }
-            if (frame)
-            {
-                bool draw_1 = m_renderer_1->draw(frame);
-                if (!draw_1)
-                {
-                    // DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
-                }
-            }
-            else
+            auto frame = data.value();
+            bool draw_1 = m_renderer_1->draw(frame);
+            if (!draw_1)
             {
                 DANEJOE_LOG_ERROR("default", "MainWindow", "{}", frame.get_error().message());
             }
         }
+        else
+        {
+            DANEJOE_LOG_ERROR("default", "MainWindow", "Invalid frame");
+        }
     }
-    // bool draw_1 = m_renderer_1->draw(m_frame_ptr);
-    // if (!draw_1)
-    // {
-    //     DANEJOE_LOG_ERROR("default", "MainWindow", "m_renderer_1绘制失败");
-    // }
 }
 
 WindowMain::~WindowMain()

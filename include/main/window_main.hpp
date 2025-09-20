@@ -54,6 +54,11 @@ private:
      * @param event 事件
      */
     void showEvent(QShowEvent* event)override;
+    /**
+     * @brief 窗口关闭事件
+     * @param event 事件
+     */
+    void closeEvent(QCloseEvent* event)override;
 private:
     AVFramePtr m_frame_ptr;
     /// @brief 帧信息
