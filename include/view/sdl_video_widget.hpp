@@ -39,8 +39,9 @@ public:
      */
     ~SDLVideoWidget();
     void init();
+    void close();
     void sleep(std::chrono::milliseconds ms);
-    std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> get_frame_queue();
+    std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> get_frame_queue();
 private:
     /**
      * @brief 定时器事件
@@ -62,15 +63,18 @@ private:
      * @param event 事件
      */
     void closeEvent(QCloseEvent* event)override;
+    void init_renderer();
 private:
+    /// @brief 是否初始化
+    bool m_is_init = false;
+    /// @brief 内部定时器
+    int m_timer_id = -1;
     /// @brief 渲染器
     std::shared_ptr<IFrameRenderer> m_renderer = nullptr;
     /// @brief SDL标签
     QLabel* m_sdl_label;
     /// @brief 视频帧率
     uint8_t m_video_rate = 25;
-    /// @brief 视频帧大小
-    DaneJoe::Size<int> m_video_frame_size = { 400, 300 };
     /// @brief 窗口布局
     QVBoxLayout* m_main_layout;
     /// @brief 帧队列

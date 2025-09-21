@@ -56,21 +56,13 @@ public:
 public:
     IFrameRenderer();
     /**
-     * @brief 获取错误码
-     */
-    virtual int error_code();
-    /**
-     * @brief 获取错误信息
-     */
-    virtual std::string error_msg(int error_code);
-    /**
      * @brief 设置帧格式
      */
     virtual void set_fmt(FrameFmt fmt) = 0;
     /**
      * @brief 初始化
      */
-    virtual bool init(FrameFmt fmt) = 0;
+    virtual bool init() = 0;
     /**
      * @brief 退出
      */
@@ -98,32 +90,6 @@ public:
      */
     virtual ~IFrameRenderer();
     /**
-     * @brief 设置渲染目标尺寸
-     * @param size 目标尺寸
-     */
-    bool set_dest_area(const DaneJoe::Pos<int>& pos, const DaneJoe::Size<int>& size);
-    /**
-     * @brief 设置渲染目标位置
-     */
-    void set_dest_pos(const DaneJoe::Pos<int>& pos);
-    /**
-     * @brief 设置渲染目标尺寸
-     */
-    bool set_dest_size(const DaneJoe::Size<int>& size);
-    /**
-     * @brief 获取渲染目标尺寸
-     */
-    DaneJoe::Size<int> get_dest_size()const;
-    /**
-     * @brief 获取渲染目标位置
-     */
-    DaneJoe::Pos<int> get_dest_pos()const;
-    /**
-     * @brief 设置原始帧尺寸
-     * @param size
-     */
-    bool set_raw_frame_size(const DaneJoe::Size<int>& size);
-    /**
      * @brief 设置窗口尺寸
      * @param size 窗口尺寸
      */
@@ -134,24 +100,10 @@ protected:
 protected:
     /// @brief 窗口尺寸
     DaneJoe::Size<int> m_window_size = { 0,0 };
-    /// @brief 原始帧尺寸
-    DaneJoe::Size<int> m_raw_frame_size = { 0,0 };
-    /// @brief 帧绘制目标尺寸
-    DaneJoe::Size<int> m_dest_size = { 0,0 };
-    /// @brief 帧绘制目标位置
-    DaneJoe::Pos<int> m_dest_pos = { 0,0 };
     /// @brief 窗口名称
     std::string m_window_name;
     /// @brief 窗口尺寸互斥锁
     std::mutex m_window_size_mutex;
     /// @brief 帧绘制互斥锁
     std::mutex m_draw_mutex;
-    /// @brief 帧绘制目标尺寸互斥锁
-    std::mutex m_dest_size_mutex;
-    /// @brief 帧绘制目标位置互斥锁
-    std::mutex m_dest_pos_mutex;
-    /// @brief 帧原始尺寸互斥锁
-    std::mutex m_raw_frame_size_mutex;
-    /// @brief 错误码
-    std::atomic<int> m_error_code = 0;
 };

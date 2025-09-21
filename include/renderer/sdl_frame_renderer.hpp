@@ -86,7 +86,7 @@ public:
     /**
      * @brief 初始化
      */
-    bool init(FrameFmt fmt) override;
+    bool init() override;
     /**
      * @brief 绘制帧
      * @param frame 帧
@@ -120,10 +120,6 @@ public:
      * @param fmt 帧格式
      */
     void set_fmt(FrameFmt fmt) override;
-    /**
-     * @brief 获取错误信息
-     */
-    std::string error_msg(int error_code)override;
 private:
     /**
      * @brief 帧格式转换
@@ -131,13 +127,7 @@ private:
      * @return SDL_PixelFormatEnum
      */
     SDL_PixelFormatEnum fmt_convert(FrameFmt fmt);
-    bool check_window(const SDL_Window* window);
-    bool check_renderer(const SDL_Renderer* renderer);
-    bool check_texture(const SDL_Texture* texture);
-    bool check_frame(std::shared_ptr<Frame> frame);
-    bool reset_texture(std::shared_ptr<Frame> frame);
     bool update_texture(std::shared_ptr<Frame> frame);
-
 private:
     const DaneJoe::Size<int> m_default_size = { 640, 480 };
 private:
@@ -159,4 +149,5 @@ private:
     std::mutex m_sdl_init_mutex;
     /// @brief SDL窗口锁
     std::mutex m_set_window_mutex;
+    DaneJoe::Size<int> m_texture_size = { 0,0 };
 };

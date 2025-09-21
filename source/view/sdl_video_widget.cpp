@@ -25,31 +25,60 @@ SDLVideoWidget::SDLVideoWidget(QWidget* parent) :QWidget(parent)
 
 void SDLVideoWidget::init()
 {
+    if (m_is_init)
+    {
+        DANEJOE_LOG_WARN("default", "SDLVideoWidget", "Already initialized");
+        return;
+    }
+    m_is_init = true;
     // 初始化帧队列
     m_frame_queue = std::make_shared<DaneJoe::MTQueue<AVFramePtr>>(512);
     // 创建一个QLabel，用于显示SDL渲染的图像
     m_sdl_label = new QLabel("sdl_label", this);
     m_sdl_label->setStyleSheet("background-color: rgb(0, 0, 0);color: rgb(255, 255, 255);");
+    this->setStyleSheet("background-color: rgb(255, 0, 0);color: rgba(44, 255, 58, 1);");
     m_sdl_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
+    this->setGeometry(400, 400, 800, 600);
     m_main_layout = new QVBoxLayout(this);
     m_main_layout->addWidget(m_sdl_label);
-
-    // 设置窗口的尺寸
-    this->setGeometry(400, 400, m_video_frame_size.x, m_video_frame_size.y);
+    m_main_layout->setStretch(0, 1);
+    m_main_layout->setSpacing(0);
+    m_main_layout->setContentsMargins(0, 0, 0, 0);
     this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     (void)m_sdl_label->winId();
-    startTimer(1000 / 25);
+    m_timer_id = startTimer(1000 / 25);
 }
 
-std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
+void SDLVideoWidget::init_renderer()
+{
+    if (m_renderer) return;
+    m_renderer = std::make_shared<SDLFrameRenderer>();
+    DaneJoe::Size<int> size = { m_sdl_label->size().width(), m_sdl_label->size().height() };
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Label size: {}, {}", size.x, size.y);
+    bool is_set_window = m_renderer->set_window("sdl_window", size, (void*)m_sdl_label->winId());
+    if (!is_set_window)
+    {
+        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Failed to set window");
+        return;
+    }
+    bool is_renderer_init = m_renderer->init();
+    if (!is_renderer_init)
+    {
+        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "init renderer failed");
+        return;
+    }
+}
+
+std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
 {
     return m_frame_queue;
 }
 
 void SDLVideoWidget::closeEvent(QCloseEvent* event)
 {
-    m_frame_queue->close();
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Into closeEvent");
+    close();
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "m_frame_queue closed after closeEvent");
 }
 
 void SDLVideoWidget::resizeEvent(QResizeEvent* event)
@@ -61,9 +90,6 @@ void SDLVideoWidget::resizeEvent(QResizeEvent* event)
         return;
     }
     m_renderer->update_window_size({ s1.width(), s1.height() });
-    m_renderer->set_dest_pos({ 0, 0 });
-    // m_renderer->set_dest_size({ s1.width(), s1.height() });
-    m_renderer->set_dest_size({ -1, -1 });
     m_sdl_label->update();
 }
 
@@ -73,35 +99,7 @@ void SDLVideoWidget::showEvent(QShowEvent* event)
     DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Into showEvent");
     QWidget::showEvent(event);
     // 只初始化一次
-    if (m_renderer) return;
-    m_renderer = std::make_shared<SDLFrameRenderer>();
-    if (!m_renderer)
-    {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Failed to create SDL renderer");
-        return;
-    }
-    DaneJoe::Size<int> size = { m_sdl_label->size().width(), m_sdl_label->size().height() };
-    bool is_set_window = m_renderer->set_window("sdl_1", size, (void*)m_sdl_label->winId());
-    if (!is_set_window)
-    {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "init sdl_1 failed");
-    }
-    bool is_set_dest_area = m_renderer->set_dest_area({ 0,0 }, size);
-    if (!is_set_dest_area)
-    {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "set dest area failed");
-    }
-    // 初始化原始帧大小
-    bool is_set_raw_frame_size = m_renderer->set_raw_frame_size(size);
-    if (!is_set_raw_frame_size)
-    {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "set raw frame size failed");
-    }
-    bool is_renderer_init = m_renderer->init(IFrameRenderer::FrameFmt::YUV420P);
-    if (!is_renderer_init)
-    {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "init renderer failed");
-    }
+    init_renderer();
 }
 
 void SDLVideoWidget::timerEvent(QTimerEvent* event)
@@ -115,32 +113,33 @@ void SDLVideoWidget::timerEvent(QTimerEvent* event)
     {
         DANEJOE_LOG_INFO("default", "SDLVideoWidget", "Renderer is exit");
         this->close();
+        return;
     }
-    if (m_frame_queue)
+    if (!m_frame_queue)
     {
-        auto data = m_frame_queue->try_pop();
-        if (data.has_value())
-        {
-            auto frame = data.value();
-            bool is_draw = m_renderer->draw(frame);
-            if (!is_draw)
-            {
-                DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Faield to draw: {}", frame.get_error().message());
-            }
-        }
-        else
-        {
-            DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Invalid frame");
-        }
+        DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Frame queue is invalid");
+        return;
     }
-    else
+    auto data = m_frame_queue->try_pop();
+    if (!data.has_value())
     {
-        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Frame queue is invalid");
+        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Frame queue is empty");
+        return;
+    }
+    AVFramePtr frame = data.value();
+    // DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "frame size: {}x{}", frame->width, frame->height);
+    bool is_draw = m_renderer->draw(frame);
+    if (!is_draw)
+    {
+        DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Faield to draw");
     }
 }
 
 SDLVideoWidget::~SDLVideoWidget()
 {
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Begin destructor");
+    close();
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "m_frame_queue closed after destructor");
 }
 
 void SDLVideoWidget::sleep(std::chrono::milliseconds ms)
@@ -152,4 +151,18 @@ void SDLVideoWidget::sleep(std::chrono::milliseconds ms)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         time = std::chrono::high_resolution_clock::now();
     } while (time < end_time);
+}
+
+void SDLVideoWidget::close()
+{
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Into close");
+    // 1. 先停止定时器，防止timerEvent继续执行
+    if (m_timer_id > -1)
+    {
+        killTimer(m_timer_id);
+    }
+    if (m_frame_queue)
+    {
+        m_frame_queue->close();
+    }
 }

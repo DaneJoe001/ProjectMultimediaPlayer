@@ -16,7 +16,7 @@ extern "C"
 #include <libswresample/swresample.h>
 }
 
-int decode_mp4(const std::string& file_path, std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> frame_queue)
+int decode_mp4(const std::string& file_path, std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> frame_queue)
 {
 #if FFMPEG_VERSION<771
     av_register_all();
@@ -178,7 +178,7 @@ int decode_mp4(const std::string& file_path, std::shared_ptr<DaneJoe::MTQueue<AV
             }
             /// @brief 计算播放位置
             int pts = packet->pts * AVRationalInfo(ic->streams[packet->stream_index]->time_base).get_double() * 1000;
-            DANEJOE_LOG_TRACE("default", "decode_mp4", "packet pts: {}", pts);
+            // DANEJOE_LOG_TRACE("default", "decode_mp4", "packet pts: {}", pts);
 #if FFMPEG_VERSION < 771
             int got_picture = 0;
             ret = avcodec_decode_video2(video_codec_context, frame, &got_picture, packet);
@@ -201,11 +201,18 @@ int decode_mp4(const std::string& file_path, std::shared_ptr<DaneJoe::MTQueue<AV
                 error = avcodec_receive_frame(video_codec_context, frame.get());
                 if (error.ok())
                 {
-                    DANEJOE_LOG_TRACE("default", "decode_mp4", "Frame width: {}, height: {}", frame->width, frame->height);
-                    if (frame_queue)
+                    if (frame_queue.expired())
                     {
-                        frame_queue->push(std::move(frame));
+                        return 0;
                     }
+                    auto frame_queue_shared_ptr = frame_queue.lock();
+                    if (!frame_queue_shared_ptr->is_running())
+                    {
+                        DANEJOE_LOG_INFO("default", "decode_mp4", "frame_queue is not running");
+                        return 0;
+                    }
+                    frame_queue_shared_ptr->push(std::move(frame));
+                    DANEJOE_LOG_TRACE("default", "decode_mp4", "end to push");
                 }
                 /// @note EAGAIN 表示需要更多数据才能继续解码
                 /// @note AVERROR_EOF 表示数据包队列已空
