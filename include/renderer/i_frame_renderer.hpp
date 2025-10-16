@@ -9,7 +9,7 @@
 #include <string>
 
 #include "util/util_vector_2d.hpp"
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 #include "codec/av_frame_ptr.hpp"
 
 /**

@@ -4,7 +4,7 @@
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 
 class OpenGLVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {

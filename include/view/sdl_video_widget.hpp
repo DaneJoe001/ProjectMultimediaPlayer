@@ -11,13 +11,14 @@
 
 #include "renderer/i_frame_renderer.hpp"
 #include "codec/av_frame_ptr.hpp"
-#include "mt_queue/mt_queue.hpp"
+#include "concurrent/blocking/mpmc_bounded_queue.hpp"
+
+using namespace DaneJoe::Concurrent::Blocking;
 
 /// @brief 前向声明
 class IFrameRenderer;
 class QVBoxLayout;
 class QLabel;
-
 
 /**
  * @class WindowMain
@@ -41,7 +42,7 @@ public:
     void init();
     void close();
     void sleep(std::chrono::milliseconds ms);
-    std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> get_frame_queue();
+    std::weak_ptr<MpmcBoundedQueue<AVFramePtr>> get_frame_queue();
 private:
     /**
      * @brief 定时器事件
@@ -78,5 +79,5 @@ private:
     /// @brief 窗口布局
     QVBoxLayout* m_main_layout;
     /// @brief 帧队列
-    std::shared_ptr<DaneJoe::MTQueue<AVFramePtr>> m_frame_queue;
+    std::shared_ptr<MpmcBoundedQueue<AVFramePtr>> m_frame_queue;
 };

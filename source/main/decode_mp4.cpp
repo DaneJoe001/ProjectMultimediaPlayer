@@ -1,11 +1,11 @@
 #include <memory>
 
 #include "main/decode_mp4.hpp"
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 #include "codec/av_common.hpp"
 #include "codec/av_error.hpp"
 #include "codec/av_packet_ptr.hpp"
-#include "mt_queue/mt_queue.hpp"
+#include "concurrent/blocking/mpmc_bounded_queue.hpp"
 
 extern "C"
 {
@@ -16,7 +16,7 @@ extern "C"
 #include <libswresample/swresample.h>
 }
 
-int decode_mp4(const std::string& file_path, std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> frame_queue)
+int decode_mp4(const std::string& file_path, std::weak_ptr<MpmcBoundedQueue<AVFramePtr>> frame_queue)
 {
 #if FFMPEG_VERSION<771
     av_register_all();

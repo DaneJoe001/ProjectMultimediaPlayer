@@ -10,7 +10,7 @@
 #include <QMessageBox>
 #include <QDebug>
 
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 #include "view/main_window.hpp"
 
 #define LOG_LEVEL 0

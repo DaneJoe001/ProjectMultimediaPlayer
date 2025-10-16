@@ -8,6 +8,8 @@
 #include <thread>
 
 #include "codec/av_frame_ptr.hpp"
-#include "mt_queue/mt_queue.hpp"
+#include "concurrent/blocking/mpmc_bounded_queue.hpp"
 
-int decode_mp4(const std::string& file_path, std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> frame_queue);
+using namespace DaneJoe::Concurrent::Blocking;
+
+int decode_mp4(const std::string& file_path, std::weak_ptr<MpmcBoundedQueue<AVFramePtr>> frame_queue);

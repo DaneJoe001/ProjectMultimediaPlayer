@@ -1,7 +1,7 @@
 #include "main/decode_mp4.hpp"
 #include "view/main_window.hpp"
 #include "view/sdl_video_widget.hpp"
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 
 MainWindow::MainWindow(QWidget* parent) :QMainWindow(parent)
 {

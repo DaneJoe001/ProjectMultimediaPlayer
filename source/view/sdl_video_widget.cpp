@@ -12,7 +12,7 @@
 #include <QLabel>
 #include <QHBoxLayout>
 
-#include "log/manage_logger.hpp"
+#include "logger/logger_manager.hpp"
 #include "view/sdl_video_widget.hpp"
 #include "renderer/sdl_frame_renderer.hpp"
 #include "util/util_vector_2d.hpp"
@@ -32,7 +32,7 @@ void SDLVideoWidget::init()
     }
     m_is_init = true;
     // 初始化帧队列
-    m_frame_queue = std::make_shared<DaneJoe::MTQueue<AVFramePtr>>(512);
+    m_frame_queue = std::make_shared<MpmcBoundedQueue<AVFramePtr>>(512);
     // 创建一个QLabel，用于显示SDL渲染的图像
     m_sdl_label = new QLabel("sdl_label", this);
     m_sdl_label->setStyleSheet("background-color: rgb(0, 0, 0);color: rgb(255, 255, 255);");
@@ -69,7 +69,7 @@ void SDLVideoWidget::init_renderer()
     }
 }
 
-std::weak_ptr<DaneJoe::MTQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
+std::weak_ptr<MpmcBoundedQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
 {
     return m_frame_queue;
 }
