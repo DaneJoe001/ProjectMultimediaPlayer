@@ -1,16 +1,15 @@
 #pragma once
 
-#include <queue>
-#include <memory>
 #include <cstdint>
-#include <vector>
+#include <memory>
 #include <mutex>
-#include <atomic>
 #include <string>
+#include <vector>
 
-#include "util/util_vector_2d.hpp"
-#include "logger/logger_manager.hpp"
+#include <danejoe/logger/logger_manager.hpp>
+
 #include "codec/av_frame_ptr.hpp"
+#include "util/util_vector_2d.hpp"
 
 /**
  * @class IFrameRenderer
@@ -19,91 +18,94 @@
 class IFrameRenderer
 {
 public:
+  /**
+   * @enum FrameFmt
+   * @brief 帧格式枚举
+   */
+  enum class FrameFmt
+  {
+    RGB888,
+    RGBA8888,
+    ARGB8888,
+    YUV420P,
+  };
+  /**
+   * @struct Frame
+   * @brief 帧结构体
+   */
+  struct Frame
+  {
+    /// @brief 是否有效
+    bool is_valid;
+    /// @brief 帧格式
+    FrameFmt fmt;
+    /// @brief 帧数据
+    std::vector<uint8_t> data;
+    /// @brief 帧大小
+    DaneJoe::Size<int> size;
+    /// @brief 帧行像素字节数
+    int pitch;
+    /// @brief 像素字节数
+    int pixel_size;
     /**
-     * @enum FrameFmt
-     * @brief 帧格式枚举
+     * @brief 初始化pitch等帧信息
      */
-    enum class FrameFmt
-    {
-        RGB888,
-        RGBA8888,
-        ARGB8888,
-        YUV420P,
-    };
-    /**
-     * @struct Frame
-     * @brief 帧结构体
-     */
-    struct Frame
-    {
-        /// @brief 是否有效
-        bool is_valid;
-        /// @brief 帧格式
-        FrameFmt fmt;
-        /// @brief 帧数据
-        std::vector<uint8_t> data;
-        /// @brief 帧大小
-        DaneJoe::Size<int> size;
-        /// @brief 帧行像素字节数
-        int pitch;
-        /// @brief 像素字节数
-        int pixel_size;
-        /**
-         * @brief 初始化pitch等帧信息
-         */
-        void init_info();
-    };
+    void init_info();
+  };
+
 public:
-    IFrameRenderer();
-    /**
-     * @brief 设置帧格式
-     */
-    virtual void set_fmt(FrameFmt fmt) = 0;
-    /**
-     * @brief 初始化
-     */
-    virtual bool init() = 0;
-    /**
-     * @brief 退出
-     */
-    virtual bool is_exit() = 0;
-    /**
-     * @brief 绘制
-     * @param frame 帧数据
-     */
-    virtual bool draw(std::shared_ptr<Frame> frame) = 0;
-    virtual bool draw(AVFramePtr frame) = 0;
-    /**
-     * @brief 设置窗口
-     * @param window_name 窗口名
-     * @param window_size 窗口大小
-     * @param window 窗口指针
-     */
-    virtual bool set_window(std::string window_name, DaneJoe::Size<int> window_size, void* window) = 0;
-    /**
-     * @brief 更新窗口大小
-     * @param window_size 窗口大小
-     */
-    virtual bool update_window_size(DaneJoe::Size<int> window_size) = 0;
-    /**
-     * @brief 析构函数
-     */
-    virtual ~IFrameRenderer();
-    /**
-     * @brief 设置窗口尺寸
-     * @param size 窗口尺寸
-     */
-    bool set_window_size(const DaneJoe::Size<int>& size);
+  IFrameRenderer();
+  /**
+   * @brief 设置帧格式
+   */
+  virtual void set_fmt(FrameFmt fmt) = 0;
+  /**
+   * @brief 初始化
+   */
+  virtual bool init() = 0;
+  /**
+   * @brief 退出
+   */
+  virtual bool is_exit() = 0;
+  /**
+   * @brief 绘制
+   * @param frame 帧数据
+   */
+  virtual bool draw(std::shared_ptr<Frame> frame) = 0;
+  virtual bool draw(AVFramePtr frame) = 0;
+  /**
+   * @brief 设置窗口
+   * @param window_name 窗口名
+   * @param window_size 窗口大小
+   * @param window 窗口指针
+   */
+  virtual bool set_window(std::string window_name,
+    DaneJoe::Size<int> window_size, void* window) = 0;
+  /**
+   * @brief 更新窗口大小
+   * @param window_size 窗口大小
+   */
+  virtual bool update_window_size(DaneJoe::Size<int> window_size) = 0;
+  /**
+   * @brief 析构函数
+   */
+  virtual ~IFrameRenderer();
+  /**
+   * @brief 设置窗口尺寸
+   * @param size 窗口尺寸
+   */
+  bool set_window_size(const DaneJoe::Size<int>& size);
 
 protected:
-    const int BASE_ERROR_CODE_QUANTITY = 2;
+  const int BASE_ERROR_CODE_QUANTITY = 2;
+
 protected:
-    /// @brief 窗口尺寸
-    DaneJoe::Size<int> m_window_size = { 0,0 };
-    /// @brief 窗口名称
-    std::string m_window_name;
-    /// @brief 窗口尺寸互斥锁
-    std::mutex m_window_size_mutex;
-    /// @brief 帧绘制互斥锁
-    std::mutex m_draw_mutex;
+  /// @brief 窗口尺寸
+  DaneJoe::Size<int> m_window_size = { 0, 0 };
+  /// @brief 窗口名称
+  std::string m_window_name;
+  /// @brief 窗口尺寸互斥锁
+  std::mutex m_window_size_mutex;
+  /// @brief 帧绘制互斥锁
+  std::mutex m_draw_mutex;
 };

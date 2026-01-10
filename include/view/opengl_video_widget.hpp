@@ -1,10 +1,10 @@
 #pragma once
 
-#include <QOpenGLWidget>
-#include <QOpenGLFunctions>
-#include <QOpenGLShaderProgram>
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#include <QtGui/QOpenGLFunctions>
+#include <QtOpenGL/QOpenGLShaderProgram>
 
-#include "logger/logger_manager.hpp"
+#include <danejoe/logger/logger_manager.hpp>
 
 class OpenGLVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {

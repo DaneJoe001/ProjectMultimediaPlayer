@@ -1,14 +1,8 @@
 #pragma once
 
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libavutil/time.h>
-#include <libavcodec/avcodec.h>
-}
+#include "status/ffmpeg_status_detail.hpp"
 
-#include "codec/av_error.hpp"
+struct AVPacket;
 
 class AVPacketPtr
 {
@@ -20,17 +14,16 @@ public:
     AVPacketPtr& operator=(const AVPacketPtr& other);
     AVPacketPtr& operator=(AVPacketPtr&& other)noexcept;
     operator bool()const;
-    AVError ensure_allocated() noexcept;
+    FFmpegStatusDetail ensure_allocated() noexcept;
     AVPacket* get()noexcept;
+    const AVPacket* get() const noexcept;
     AVPacket* release()noexcept;
     void reset();
-    AVError ref(AVPacketPtr other);
+    FFmpegStatusDetail ref(const AVPacketPtr& other);
     void unref()noexcept;
-    AVError get_error() const noexcept;
     AVPacket& operator*();
     AVPacket* operator->()noexcept;
     void swap(AVPacketPtr& other)noexcept;
 private:
-    AVError m_error;
     AVPacket* m_packet = nullptr;
 };

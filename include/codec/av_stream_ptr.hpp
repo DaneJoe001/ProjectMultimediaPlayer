@@ -1,15 +1,11 @@
 #pragma once
 
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libavutil/time.h>
-#include <libavcodec/avcodec.h>
-}
+struct AVStream;
 
 class AVStreamPtr
 {
+public:
+    AVStreamPtr(AVStream* stream);
 private:
-    AVStream* m_stream;
+    AVStream* m_stream = nullptr;
 };

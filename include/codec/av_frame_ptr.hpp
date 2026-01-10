@@ -1,20 +1,13 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <cstdint>
-
 extern "C"
 {
-#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libavutil/imgutils.h>
-#include <libavutil/time.h>
-#include <libswscale/swscale.h>
 }
 
-#include "av_error.hpp"
+#include "status/ffmpeg_status_detail.hpp"
+
+struct AVFrame;
 
 /**
  * @class AVFramePtr
@@ -62,13 +55,9 @@ public:
      */
     const AVFrame* get() const noexcept;
     /**
-     * @brief 最近一次操作的错误码（0 成功，非 0 失败）。
-     */
-    AVError get_error() const noexcept;
-    /**
      * @brief 分配并初始化底层缓冲；失败返回错误码。
      */
-    AVError init(int width, int height, AVPixelFormat format, int align = 0);
+    FFmpegStatusDetail init(int width, int height, AVPixelFormat format, int align = 0);
     /**
      * @brief 获取 AVFrame 指针（语法糖）。
      */
@@ -104,7 +93,7 @@ public:
     /**
      * @brief 确保已分配结构体（惰性分配）；失败时设置错误码并返回。
      */
-    AVError ensure_allocated() noexcept;
+    FFmpegStatusDetail ensure_allocated() noexcept;
     /**
      * @brief 释放所有权并返回裸指针（调用者负责 `av_frame_free`）。
      */
@@ -118,8 +107,7 @@ public:
      */
     ~AVFramePtr() noexcept;
 private:
-    AVFrame* m_frame = nullptr;   ///< 持有的 AVFrame 指针（可能为 nullptr）
-    AVError m_error;              ///< 最近一次操作的错误码（0 成功，非 0 失败）
+    AVFrame* m_frame = nullptr;
 };
 
 /// 非成员 swap，利于 ADL 与泛型算法

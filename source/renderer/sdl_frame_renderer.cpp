@@ -1,7 +1,6 @@
-#include <exception>
 #include <stdexcept>
 
-#include <iostream>
+#include <danejoe/logger/logger_manager.hpp>
 
 #include "renderer/sdl_frame_renderer.hpp"
 

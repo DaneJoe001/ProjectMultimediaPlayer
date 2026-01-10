@@ -1,0 +1,8 @@
+if(BUILD_GUI_APP)
+    if(NOT ADD_QT_LIB)
+        message(FATAL_ERROR "BUILD_GUI_APP=ON requires ADD_QT_LIB=ON for the current Qt-based GUI example")
+    endif()
+    set(EXECUTABLE_SOURCE "${CMAKE_SOURCE_DIR}/source/main/widget_main.cpp")
+else()
+    set(EXECUTABLE_SOURCE "${CMAKE_SOURCE_DIR}/source/main/console_main.cpp")
+endif()

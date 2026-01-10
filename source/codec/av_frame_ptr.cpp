@@ -1,9 +1,18 @@
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+
+#include <libavutil/avutil.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/time.h>
+#include <libswscale/swscale.h>
+}
 #include "codec/av_frame_ptr.hpp"
 
 AVFramePtr::AVFramePtr(int width, int height, AVPixelFormat format, int align)
 {
-    AVError result = init(width, height, format, align);
-    if (result.failed())
+    FFmpegStatusDetail result = init(width, height, format, align);
+    if (result.is_error())
     {
         if (m_frame)
         {
@@ -18,53 +27,52 @@ AVFramePtr::AVFramePtr() noexcept
     m_frame = nullptr;
 }
 
-AVError AVFramePtr::ensure_allocated() noexcept
+FFmpegStatusDetail AVFramePtr::ensure_allocated() noexcept
 {
     if (m_frame == nullptr)
     {
         m_frame = av_frame_alloc();
         if (!m_frame)
         {
-            m_error = AVError(AVERROR(ENOMEM));
-            return m_error;
+            return FFmpegStatusDetail(AVERROR(ENOMEM));
         }
     }
-    m_error = AVError(0);
-    return m_error;
+    return FFmpegStatusDetail(DaneJoe::StatusLevel::Ok);
 }
 
-AVError AVFramePtr::init(int width, int height, AVPixelFormat format, int align)
+FFmpegStatusDetail AVFramePtr::init(int width, int height, AVPixelFormat format, int align)
 {
     // 分配结构体
-    AVError alloc_err = ensure_allocated();
-    if (alloc_err.failed())
+    FFmpegStatusDetail alloc_status = ensure_allocated();
+    if (alloc_status.is_error())
     {
-        return m_error; // 分配失败
+        return alloc_status; // 分配失败
     }
     av_frame_unref(m_frame);
 
     m_frame->width = width;
     m_frame->height = height;
     m_frame->format = format;
-    m_error = av_frame_get_buffer(m_frame, align);
-    if (m_error.failed())
+    FFmpegStatusDetail get_buffer_status =
+        FFmpegStatusDetail(av_frame_get_buffer(m_frame, align));
+    if (get_buffer_status.is_error())
     {
-        return m_error;
+        return get_buffer_status;
     }
     switch (m_frame->format)
     {
-    case AV_PIX_FMT_YUV420P:
-        m_frame->linesize[0] = width;
-        m_frame->linesize[1] = width / 2;
-        m_frame->linesize[2] = width / 2;
-        break;
-    case AV_PIX_FMT_YUVJ420P:
-        break;
-    case AV_PIX_FMT_YUV422P:
-    default:
-        break;
+        case AV_PIX_FMT_YUV420P:
+            m_frame->linesize[0] = width;
+            m_frame->linesize[1] = width / 2;
+            m_frame->linesize[2] = width / 2;
+            break;
+        case AV_PIX_FMT_YUVJ420P:
+            break;
+        case AV_PIX_FMT_YUV422P:
+        default:
+            break;
     }
-    return m_error;
+    return get_buffer_status;
 }
 
 AVFramePtr::AVFramePtr(const AVFramePtr& frame)
@@ -72,67 +80,57 @@ AVFramePtr::AVFramePtr(const AVFramePtr& frame)
     if (!frame.get())
     {
         m_frame = nullptr;
-        m_error = frame.m_error;
         return;
     }
     m_frame = av_frame_alloc();
     if (!m_frame)
     {
-        m_error = AVError(AVERROR(ENOMEM));
         return;
     }
-    m_error = av_frame_ref(m_frame, frame.get());
-    if (m_error.failed())
+    FFmpegStatusDetail ref_status =
+        av_frame_ref(m_frame, frame.get());
+    if (ref_status.is_error())
     {
         // 引用失败，回退到空状态，保留错误码
         av_frame_free(&m_frame);
         m_frame = nullptr;  // 确保设置为 nullptr
     }
-    else
-    {
-        m_error = AVError(0);
-    }
 }
 
 AVFramePtr::AVFramePtr(AVFramePtr&& frame) noexcept : m_frame(frame.get())
 {
-    m_error = frame.m_error;
     frame.m_frame = nullptr;
 }
 
-AVFramePtr& AVFramePtr::operator=(const AVFramePtr& frame)
+AVFramePtr& AVFramePtr::operator=(const AVFramePtr& other)
 {
-    if (this == &frame)
+    if (this == &other)
     {
         return *this;
     }
     AVFrame* new_frame = nullptr;
-    AVError new_error;
 
-    if (frame.get())
+    if (other.get())
     {
         new_frame = av_frame_alloc();
         if (!new_frame)
         {
             return *this;
         }
-        new_error = av_frame_ref(new_frame, frame.get());
-        if (new_error.failed())
+        FFmpegStatusDetail ref_status =
+            av_frame_ref(new_frame, other.get());
+        if (ref_status.is_error())
         {
             av_frame_free(&new_frame);
             return *this;
         }
-        new_error = AVError(0);
     }
     else
     {
         new_frame = nullptr;
-        new_error = frame.m_error;
     }
-
     av_frame_free(&m_frame);
     m_frame = new_frame;
-    m_error = new_error;
     return *this;
 }
 
@@ -147,7 +145,6 @@ AVFramePtr& AVFramePtr::operator=(AVFramePtr&& frame) noexcept
         av_frame_free(&m_frame);
     }
     m_frame = frame.get();
-    m_error = frame.m_error;
     frame.m_frame = nullptr;
     return *this;
 }
@@ -195,11 +192,6 @@ AVFramePtr::operator bool() const noexcept
     return m_frame != nullptr;
 }
 
-AVError AVFramePtr::get_error() const noexcept
-{
-    return m_error;
-}
-
 std::size_t AVFramePtr::use_count() const noexcept
 {
     if (m_frame && m_frame->buf[0])
@@ -235,5 +227,4 @@ AVFrame* AVFramePtr::release() noexcept
 void AVFramePtr::swap(AVFramePtr& other) noexcept
 {
     std::swap(m_frame, other.m_frame);
-    std::swap(m_error, other.m_error);
 }

@@ -2,59 +2,319 @@
     "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
-        "minor": 15,
+        "minor": 20,
         "patch": 0
     },
     "configurePresets": [
         {
-            "name": "gcc-debug",
-            "displayName": "GCC Debug",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build/gcc-debug",
+            "name": "linux-gcc",
+            "hidden": true,
+            "generator": "Unix Makefiles"
+        },
+        {
+            "name": "linux-gcc-debug",
+            "displayName": "Linux GCC Debug",
+            "inherits": "linux-gcc",
+            "binaryDir": "${sourceDir}/build/linux-gcc-debug",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE":"/home/danejoe001/develop_environment/environment_cpp/vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_CXX_COMPILER": "/usr/local/bin/g++",
-                "CMAKE_PREFIX_PATH": "/usr/lib/x86_64-linux-gnu/cmake",
                 "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
-            "name": "msvc-debug",
-            "displayName": "Default Configuration",
-            "description": "Default build configuration with all dependencies",
-            "binaryDir": "${sourceDir}/build",
+            "name": "linux-gcc-release",
+            "displayName": "Linux GCC Release",
+            "inherits": "linux-gcc",
+            "binaryDir": "${sourceDir}/build/linux-gcc-release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_STANDARD": "23",
-                "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-                "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_TOOLCHAIN_FILE": "D:/develop_environment/environment_cpp/cpp_vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_PREFIX_PATH": "D:/personal_app/app_qt/qt_6.9/6.9.1/msvc2022_64",
-                "FFMPEG_LIBRARY_DIR": "D:/develop_environment/environment_cpp/cpp_vcpkg/vcpkg/installed/x64-windows/debug/lib",
-                "FFMPEG_INCLUDE_DIR": "D:/develop_environment/environment_cpp/cpp_vcpkg/vcpkg/installed/x64-windows/include",
-                "Boost_USE_STATIC_LIBS": "ON",
-                "Boost_USE_MULTITHREADED": "ON",
-                "Boost_USE_STATIC_RUNTIME": "OFF",
-                "MYSQL_ROOT": "C:/Program Files/MySQL/MySQL Server 8.0",
-                "BUILD_CLIENT": "ON",
-                "BUILD_SERVER": "ON",
-                "BUILD_TESTS": "OFF"
-            },
-            "environment": {
-                "VCPKG_ROOT": "D:/develop_environment/environment_cpp/cpp_vcpkg/vcpkg"
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "linux-gcc-relwithdebinfo",
+            "displayName": "Linux GCC RelWithDebInfo",
+            "inherits": "linux-gcc",
+            "binaryDir": "${sourceDir}/build/linux-gcc-relwithdebinfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "linux-gcc-minsizerel",
+            "displayName": "Linux GCC MinSizeRel",
+            "inherits": "linux-gcc",
+            "binaryDir": "${sourceDir}/build/linux-gcc-minsizerel",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        },
+        {
+            "name": "linux-clang",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "linux-clang-debug",
+            "displayName": "Linux Clang Debug",
+            "inherits": "linux-clang",
+            "binaryDir": "${sourceDir}/build/linux-clang-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "linux-clang-release",
+            "displayName": "Linux Clang Release",
+            "inherits": "linux-clang",
+            "binaryDir": "${sourceDir}/build/linux-clang-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "linux-clang-relwithdebinfo",
+            "displayName": "Linux Clang RelWithDebInfo",
+            "inherits": "linux-clang",
+            "binaryDir": "${sourceDir}/build/linux-clang-relwithdebinfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "linux-clang-minsizerel",
+            "displayName": "Linux Clang MinSizeRel",
+            "inherits": "linux-clang",
+            "binaryDir": "${sourceDir}/build/linux-clang-minsizerel",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        },
+        {
+            "name": "win-msvc",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "win-msvc-debug",
+            "displayName": "Windows MSVC Debug (VS)",
+            "inherits": "win-msvc",
+            "binaryDir": "${sourceDir}/build/win-msvc-debug"
+        },
+        {
+            "name": "win-msvc-release",
+            "displayName": "Windows MSVC Release (VS)",
+            "inherits": "win-msvc",
+            "binaryDir": "${sourceDir}/build/win-msvc-release"
+        },
+        {
+            "name": "win-msvc-relwithdebinfo",
+            "displayName": "Windows MSVC RelWithDebInfo (VS)",
+            "inherits": "win-msvc",
+            "binaryDir": "${sourceDir}/build/win-msvc-relwithdebinfo"
+        },
+        {
+            "name": "win-msvc-minsizerel",
+            "displayName": "Windows MSVC MinSizeRel (VS)",
+            "inherits": "win-msvc",
+            "binaryDir": "${sourceDir}/build/win-msvc-minsizerel"
+        },
+        {
+            "name": "win-msvc-ninja",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_NINJA_FORCE_RESPONSE_FILE": "ON",
+                "CMAKE_VERBOSE_MAKEFILE": "ON",
+                "CMAKE_EXE_LINKER_FLAGS": "/MANIFEST:NO",
+                "CMAKE_SHARED_LINKER_FLAGS": "/MANIFEST:NO",
+                "CMAKE_MODULE_LINKER_FLAGS": "/MANIFEST:NO",
+                "CMAKE_TRY_COMPILE_TARGET_TYPE": "STATIC_LIBRARY"
+            }
+        },
+        {
+            "name": "win-msvc-debug-ninja",
+            "displayName": "Windows MSVC Debug (Ninja)",
+            "inherits": "win-msvc-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-debug-ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "win-msvc-release-ninja",
+            "displayName": "Windows MSVC Release (Ninja)",
+            "inherits": "win-msvc-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-release-ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "win-msvc-relwithdebinfo-ninja",
+            "displayName": "Windows MSVC RelWithDebInfo (Ninja)",
+            "inherits": "win-msvc-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-relwithdebinfo-ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "win-msvc-minsizerel-ninja",
+            "displayName": "Windows MSVC MinSizeRel (Ninja)",
+            "inherits": "win-msvc-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-minsizerel-ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        },
+        {
+            "name": "win-msvc-debug-ninja-test",
+            "displayName": "Windows MSVC Debug (Ninja) - Test",
+            "inherits": "win-msvc-debug-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-debug-ninja-test",
+            "cacheVariables": {
+                "BUILD_TEST": "ON"
+            }
+        },
+        {
+            "name": "win-msvc-release-ninja-test",
+            "displayName": "Windows MSVC Release (Ninja) - Test",
+            "inherits": "win-msvc-release-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-release-ninja-test",
+            "cacheVariables": {
+                "BUILD_TEST": "ON"
+            }
+        },
+        {
+            "name": "win-msvc-debug-ninja-example",
+            "displayName": "Windows MSVC Debug (Ninja) - Example",
+            "inherits": "win-msvc-debug-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-debug-ninja-example",
+            "cacheVariables": {
+                "BUILD_EXAMPLE": "ON"
+            }
+        },
+        {
+            "name": "win-msvc-release-ninja-example",
+            "displayName": "Windows MSVC Release (Ninja) - Example",
+            "inherits": "win-msvc-release-ninja",
+            "binaryDir": "${sourceDir}/build/win-msvc-release-ninja-example",
+            "cacheVariables": {
+                "BUILD_EXAMPLE": "ON"
             }
         }
     ],
     "buildPresets": [
         {
-            "name": "msvc-debug",
-            "configurePreset": "msvc-debug",
-            "jobs":8
+            "name": "linux-gcc-debug",
+            "configurePreset": "linux-gcc-debug",
+            "jobs": 8
         },
         {
-            "name": "gcc-debug",
-            "configurePreset": "gcc-debug",
-            "jobs":8
+            "name": "linux-gcc-release",
+            "configurePreset": "linux-gcc-release",
+            "jobs": 8
+        },
+        {
+            "name": "linux-gcc-relwithdebinfo",
+            "configurePreset": "linux-gcc-relwithdebinfo",
+            "jobs": 8
+        },
+        {
+            "name": "linux-gcc-minsizerel",
+            "configurePreset": "linux-gcc-minsizerel",
+            "jobs": 8
+        },
+        {
+            "name": "linux-clang-debug",
+            "configurePreset": "linux-clang-debug",
+            "jobs": 8
+        },
+        {
+            "name": "linux-clang-release",
+            "configurePreset": "linux-clang-release",
+            "jobs": 8
+        },
+        {
+            "name": "linux-clang-relwithdebinfo",
+            "configurePreset": "linux-clang-relwithdebinfo",
+            "jobs": 8
+        },
+        {
+            "name": "linux-clang-minsizerel",
+            "configurePreset": "linux-clang-minsizerel",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-debug",
+            "configurePreset": "win-msvc-debug",
+            "configuration": "Debug",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-release",
+            "configurePreset": "win-msvc-release",
+            "configuration": "Release",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-relwithdebinfo",
+            "configurePreset": "win-msvc-relwithdebinfo",
+            "configuration": "RelWithDebInfo",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-minsizerel",
+            "configurePreset": "win-msvc-minsizerel",
+            "configuration": "MinSizeRel",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-debug-ninja",
+            "configurePreset": "win-msvc-debug-ninja",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-release-ninja",
+            "configurePreset": "win-msvc-release-ninja",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-relwithdebinfo-ninja",
+            "configurePreset": "win-msvc-relwithdebinfo-ninja",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-minsizerel-ninja",
+            "configurePreset": "win-msvc-minsizerel-ninja",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-debug-ninja-test",
+            "configurePreset": "win-msvc-debug-ninja-test",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-debug-ninja-example",
+            "configurePreset": "win-msvc-debug-ninja-example",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-release-ninja-test",
+            "configurePreset": "win-msvc-release-ninja-test",
+            "jobs": 8
+        },
+        {
+            "name": "win-msvc-release-ninja-example",
+            "configurePreset": "win-msvc-release-ninja-example",
+            "jobs": 8
         }
     ]
 }

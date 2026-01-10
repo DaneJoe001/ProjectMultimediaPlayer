@@ -1,7 +1,5 @@
-#include <iostream>
-#include <type_traits>
-#include <cstdint>
 #include <string>
+#include <chrono>
 
 #include <QDebug>
 #include <QMessageBox>
@@ -12,7 +10,8 @@
 #include <QLabel>
 #include <QHBoxLayout>
 
-#include "logger/logger_manager.hpp"
+#include <danejoe/logger/logger_manager.hpp>
+
 #include "view/sdl_video_widget.hpp"
 #include "renderer/sdl_frame_renderer.hpp"
 #include "util/util_vector_2d.hpp"
@@ -32,7 +31,7 @@ void SDLVideoWidget::init()
     }
     m_is_init = true;
     // 初始化帧队列
-    m_frame_queue = std::make_shared<MpmcBoundedQueue<AVFramePtr>>(512);
+    m_frame_queue = std::make_shared<DaneJoe::MpmcBoundedQueue<AVFramePtr>>(512);
     // 创建一个QLabel，用于显示SDL渲染的图像
     m_sdl_label = new QLabel("sdl_label", this);
     m_sdl_label->setStyleSheet("background-color: rgb(0, 0, 0);color: rgb(255, 255, 255);");
@@ -69,7 +68,7 @@ void SDLVideoWidget::init_renderer()
     }
 }
 
-std::weak_ptr<MpmcBoundedQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
+std::weak_ptr<DaneJoe::MpmcBoundedQueue<AVFramePtr>> SDLVideoWidget::get_frame_queue()
 {
     return m_frame_queue;
 }
@@ -78,11 +77,15 @@ void SDLVideoWidget::closeEvent(QCloseEvent* event)
 {
     DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Into closeEvent");
     close();
-    DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "m_frame_queue closed after closeEvent");
+    DANEJOE_LOG_TRACE("default", "SDLVideoWidget",
+        "m_frame_queue closed after closeEvent");
+    QWidget::closeEvent(event);
 }
 
 void SDLVideoWidget::resizeEvent(QResizeEvent* event)
 {
+
+    QWidget::resizeEvent(event);
     auto s1 = m_sdl_label->contentsRect().size();
     if (!m_renderer)
     {
@@ -104,6 +107,7 @@ void SDLVideoWidget::showEvent(QShowEvent* event)
 
 void SDLVideoWidget::timerEvent(QTimerEvent* event)
 {
+    QWidget::timerEvent(event);
     if (!m_renderer)
     {
         DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Renderer is invalid");
@@ -120,13 +124,13 @@ void SDLVideoWidget::timerEvent(QTimerEvent* event)
         DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "Frame queue is invalid");
         return;
     }
-    auto data = m_frame_queue->try_pop();
-    if (!data.has_value())
+    auto frame_opt = m_frame_queue->try_pop();
+    if (!frame_opt.has_value())
     {
         DANEJOE_LOG_ERROR("default", "SDLVideoWidget", "Frame queue is empty");
         return;
     }
-    AVFramePtr frame = data.value();
+    AVFramePtr frame = frame_opt.value();
     // DANEJOE_LOG_TRACE("default", "SDLVideoWidget", "frame size: {}x{}", frame->width, frame->height);
     bool is_draw = m_renderer->draw(frame);
     if (!is_draw)
@@ -145,7 +149,7 @@ SDLVideoWidget::~SDLVideoWidget()
 void SDLVideoWidget::sleep(std::chrono::milliseconds ms)
 {
     auto time = std::chrono::high_resolution_clock::now();
-    std::chrono::_V2::system_clock::time_point end_time = time + ms;
+    auto end_time = time + ms;
     do
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

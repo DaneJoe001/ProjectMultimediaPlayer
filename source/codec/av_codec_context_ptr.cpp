@@ -1,3 +1,11 @@
+extern "C"
+{
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+#include <libavutil/time.h>
+#include <libavcodec/avcodec.h>
+}
+#include <danejoe/logger/logger_manager.hpp>
 #include "codec/av_codec_context_ptr.hpp"
 
 AVCodecContextPtr::AVCodecContextPtr()
@@ -16,7 +24,7 @@ AVCodecContextPtr::~AVCodecContextPtr()
 
 AVCodecContext* AVCodecContextPtr::get()const
 {
-    return AVCodecContextPtr::get();
+    return m_codec_context;
 }
 
 AVCodecContext* AVCodecContextPtr::operator->()const
@@ -24,27 +32,52 @@ AVCodecContext* AVCodecContextPtr::operator->()const
     return m_codec_context;
 }
 
-void AVCodecContextPtr::alloc_context3(const AVCodec* codec)
+bool AVCodecContextPtr::alloc_context3(const AVCodec* codec)
 {
+    if (m_codec_context)
+    {
+        avcodec_free_context(&m_codec_context);
+    }
     m_codec_context = avcodec_alloc_context3(codec);
+    return m_codec_context != nullptr;
 }
 
-AVError AVCodecContextPtr::open2(const AVCodec* codec, AVDictionary** options)
+FFmpegStatusDetail AVCodecContextPtr::open2(const AVCodec* codec, AVDictionary** options)
 {
-    return AVError(avcodec_open2(m_codec_context, codec, options));
+    if (!codec)
+    {
+        DANEJOE_LOG_WARN("default", "AVCodecContextPtr", "Failed to open codec,codec is null");
+        return FFmpegStatusDetail(AVERROR(EINVAL));
+    }
+    return FFmpegStatusDetail(avcodec_open2(m_codec_context, codec, options));
 }
 
-AVError AVCodecContextPtr::parameters_to_context(const AVCodecParameters* parameters)
+FFmpegStatusDetail AVCodecContextPtr::parameters_to_context(const AVCodecParameters* parameters)
 {
-    return AVError(avcodec_parameters_to_context(m_codec_context, parameters));
+    if (!parameters)
+    {
+        DANEJOE_LOG_WARN("default", "AVCodecContextPtr", "Failed to parameters to context,parameters is null");
+        return FFmpegStatusDetail(AVERROR(EINVAL));
+    }
+    return FFmpegStatusDetail(avcodec_parameters_to_context(m_codec_context, parameters));
 }
 
-AVError AVCodecContextPtr::send_packet(AVPacketPtr packet)
+FFmpegStatusDetail AVCodecContextPtr::send_packet(AVPacketPtr& packet)
 {
-    return AVError(avcodec_send_packet(m_codec_context, packet.get()));
+    if (!packet)
+    {
+        DANEJOE_LOG_WARN("default", "AVCodecContextPtr", "Failed to send packet,packet is null");
+        return FFmpegStatusDetail(AVERROR(EINVAL));
+    }
+    return FFmpegStatusDetail(avcodec_send_packet(m_codec_context, packet.get()));
 }
 
-AVError AVCodecContextPtr::receive_frame(AVFramePtr frame)
+FFmpegStatusDetail AVCodecContextPtr::receive_frame(AVFramePtr& frame)
 {
-    return AVError(avcodec_receive_frame(m_codec_context, frame.get()));
+    if (!frame)
+    {
+        DANEJOE_LOG_WARN("default", "AVCodecContextPtr", "Failed to receive frame,frame is null");
+        return FFmpegStatusDetail(AVERROR(EINVAL));
+    }
+    return FFmpegStatusDetail(avcodec_receive_frame(m_codec_context, frame.get()));
 }

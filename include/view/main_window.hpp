@@ -1,10 +1,10 @@
 #pragma once
 
-#include <thread>
-
 #include <QMainWindow>
 
-class SDLVideoWidget;
+#include "model/session_frame.hpp"
+
+class SDLFrameWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -13,7 +13,8 @@ public:
     MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
     void init();
+public slots:
+    void on_frame_ready(SessionFrame frame);
 private:
-    std::jthread m_decode_thread;
-    SDLVideoWidget* m_video_widget;
+    SDLFrameWidget* m_frame_widget = nullptr;
 };

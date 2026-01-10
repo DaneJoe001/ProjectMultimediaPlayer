@@ -1,88 +1,36 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(cpp_exercise_qt_sdl LANGUAGES CXX)
+# @brief 项目名称
+set(PROJECT_NAME TemplateProject)
+# @brief 核心库名称
+set(CORE_LIB_NAME TemplateCore)
+# @brief 可执行文件名称
+set(EXECUTABLE_NAME executable)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+project(${PROJECT_NAME} LANGUAGES CXX)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+include("${CMAKE_SOURCE_DIR}/cmake/options.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/project_options.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/warnings.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/source_collection.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/entry_points.cmake")
 
-if(CMAKE_EXPORT_COMPILE_COMMANDS)
-  add_custom_target(update_compile_commands ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_BINARY_DIR}/compile_commands.json"
-            "${CMAKE_SOURCE_DIR}/compile_commands.json")
+add_library(${CORE_LIB_NAME} ${CORE_SOURCES})
+target_include_directories(${CORE_LIB_NAME} PUBLIC "include")
+apply_warnings(${CORE_LIB_NAME})
+
+add_executable(${EXECUTABLE_NAME} ${EXECUTABLE_SOURCE} ${QRC_SOURCES})
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${CORE_LIB_NAME})
+apply_warnings(${EXECUTABLE_NAME})
+
+include("${CMAKE_SOURCE_DIR}/cmake/dependencies.cmake")
+
+if(BUILD_TEST)
+    # @brief 启用测试
+    include(CTest)
+    enable_testing()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
+      # @brief 添加测试子目录
+      add_subdirectory(test)
+    endif()
 endif()
-
-file(GLOB SOURCES 
-    "include/view/*.hpp"
-    "source/renderer/*.cpp" 
-    "source/util/*.cpp"
-    "source/codec/*.cpp"
-    "source/view/*.cpp"
-    "source/main/*.cpp"  
-    "resource/*.qrc")
-
-# 添加编码设置
-if(MSVC)
-    add_compile_options(/utf-8)
-    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif()
-
-include(FetchContent)
-FetchContent_Declare(
-    DaneJoeStringify
-    GIT_REPOSITORY https://github.com/DaneJoe001/DaneJoeStringify.git
-    GIT_TAG v1.0.0
-)
-FetchContent_MakeAvailable(DaneJoeStringify)
-
-FetchContent_Declare(
-    DaneJoeLogger
-    GIT_REPOSITORY https://github.com/DaneJoe001/DaneJoeLogger.git
-    GIT_TAG v1.0.0
-)
-FetchContent_MakeAvailable(DaneJoeLogger)
-
-FetchContent_Declare(
-    DaneJoeConcurrent
-    GIT_REPOSITORY https://github.com/DaneJoe001/DaneJoeConcurrent.git
-    GIT_TAG v1.0.0
-)
-FetchContent_MakeAvailable(DaneJoeConcurrent)
-
-find_package(Qt6 COMPONENTS Core Widgets OpenGL OpenGLWidgets REQUIRED)
-message(STATUS "Qt6 found:" ${Qt6_FOUND})
-find_package(SDL2 CONFIG REQUIRED)
-find_package(FFMPEG REQUIRED)
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-add_executable(${PROJECT_NAME} ${SOURCES})
-
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    Qt6::Core 
-    Qt6::Widgets
-    Qt6::OpenGL 
-    Qt6::OpenGLWidgets
-)
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-    $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-)
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    danejoe::stringify
-    danejoe::logger
-    danejoe::concurrent
-)
-
-target_include_directories(${PROJECT_NAME} PRIVATE include)
-target_include_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_INCLUDE_DIRS})
-target_link_directories(${PROJECT_NAME} PRIVATE ${FFMPEG_LIBRARY_DIRS})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${FFMPEG_LIBRARIES})
-
-

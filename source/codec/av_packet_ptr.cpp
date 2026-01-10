@@ -1,4 +1,11 @@
-#include <exception>
+#include <libavutil/error.h>
+extern "C"
+{
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+#include <libavutil/time.h>
+#include <libavcodec/avcodec.h>
+}
 #include <stdexcept>
 
 #include "codec/av_packet_ptr.hpp"
@@ -8,19 +15,14 @@ AVPacketPtr::AVPacketPtr()noexcept
     m_packet = nullptr;
 }
 
-AVError AVPacketPtr::ensure_allocated() noexcept
+FFmpegStatusDetail AVPacketPtr::ensure_allocated() noexcept
 {
     if (!m_packet)
     {
         m_packet = av_packet_alloc();
     }
-    if (!m_packet)
-    {
-        m_error = AVERROR(ENOMEM);
-        return m_error;
-    }
-    m_error = 0;
-    return m_error;
+    return m_packet == nullptr ? FFmpegStatusDetail(AVERROR(ENOMEM))
+        : FFmpegStatusDetail(DaneJoe::StatusLevel::Ok);
 }
 
 AVPacketPtr::~AVPacketPtr()
@@ -46,14 +48,14 @@ AVPacketPtr::AVPacketPtr(const AVPacketPtr& other)
     {
         return;
     }
-    m_error = ensure_allocated();
-    if (m_error.failed())
+    auto m_error = ensure_allocated();
+    if (m_error.is_error())
     {
         m_packet = nullptr;
         return;
     }
     m_error = ref(other);
-    if (m_error.failed())
+    if (m_error.is_error())
     {
         av_packet_free(&m_packet);
         m_packet = nullptr;
@@ -64,10 +66,10 @@ AVPacketPtr::AVPacketPtr(const AVPacketPtr& other)
 void AVPacketPtr::swap(AVPacketPtr& other)noexcept
 {
     std::swap(m_packet, other.m_packet);
-    std::swap(m_error, other.m_error);
 }
 
-AVPacketPtr::AVPacketPtr(AVPacketPtr&& other)noexcept :m_error(other.m_error), m_packet(other.m_packet)
+AVPacketPtr::AVPacketPtr(AVPacketPtr&& other)noexcept :
+    m_packet(other.m_packet)
 {
     other.m_packet = nullptr;
 }
@@ -79,34 +81,23 @@ AVPacketPtr& AVPacketPtr::operator=(const AVPacketPtr& other)
     {
         return *this;
     }
-    AVError new_error;
     AVPacket* new_packet = nullptr;
     /// @brief 当源对象不为空时进行分配
     if (other.m_packet)
     {
         new_packet = av_packet_alloc();
-        if (!new_packet)
+        if (new_packet)
         {
-            new_error = AVERROR(ENOMEM);
-        }
-        else
-        {
-            AVError error = av_packet_ref(new_packet, other.m_packet);
-            if (error.failed())
+            FFmpegStatusDetail error = av_packet_ref(new_packet, other.m_packet);
+            if (error.is_error())
             {
                 av_packet_free(&new_packet);
                 new_packet = nullptr;
-                new_error = error;
-            }
-            else
-            {
-                new_error = AVError();
             }
         }
     }
     else
     {
-        new_error = AVError();
         new_packet = nullptr;
     }
     if (m_packet)
@@ -115,7 +106,6 @@ AVPacketPtr& AVPacketPtr::operator=(const AVPacketPtr& other)
         av_packet_free(&m_packet);
     }
     m_packet = new_packet;
-    m_error = new_error;
     return *this;
 }
 
@@ -132,8 +122,6 @@ AVPacketPtr& AVPacketPtr::operator=(AVPacketPtr&& other)noexcept
     }
     m_packet = other.m_packet;
     other.m_packet = nullptr;
-    m_error = other.m_error;
-    other.m_error = AVError();
     return *this;
 }
 
@@ -154,6 +142,11 @@ AVPacket* AVPacketPtr::get()noexcept
     return m_packet;
 }
 
+const AVPacket* AVPacketPtr::get() const noexcept
+{
+    return m_packet;
+}
+
 AVPacket* AVPacketPtr::operator->()noexcept
 {
     return m_packet;
@@ -167,26 +160,26 @@ AVPacket& AVPacketPtr::operator*()
     }
     else
     {
-        throw std::runtime_error(m_error.message());
+        throw std::runtime_error("AVPacketPtr::operator*() m_packet is nullptr");
     }
 }
 
-AVError AVPacketPtr::get_error() const noexcept
+FFmpegStatusDetail AVPacketPtr::ref(const AVPacketPtr& other)
 {
-    return m_error;
-}
-
-AVError AVPacketPtr::ref(AVPacketPtr other)
-{
-    if (other.get())
+    if (!other)
     {
-        if (m_packet)
-        {
-            unref();
-        }
-        m_error = av_packet_ref(m_packet, other.get());
+        return FFmpegStatusDetail(DaneJoe::StatusLevel::Error);
     }
-    return m_error;
+
+    if (m_packet)
+    {
+        unref();
+    }
+    else
+    {
+        ensure_allocated();
+    }
+    return av_packet_ref(m_packet, other.get());
 }
 
 void AVPacketPtr::unref()noexcept

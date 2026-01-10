@@ -1,28 +1,31 @@
 #pragma once
 
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libavutil/time.h>
-#include <libavcodec/avcodec.h>
-}
-
-#include "codec/av_error.hpp"
+#include "status/ffmpeg_status_detail.hpp"
 #include "codec/av_packet_ptr.hpp"
 
-class AVFormatContextPtr {
+struct AVInputFormat;
+struct AVDictionary;
+struct AVFormatContext;
+
+class AVFormatContextPtr
+{
 public:
     AVFormatContextPtr();
     AVFormatContextPtr(AVFormatContext* av_format_context);
-    AVError open_input(const std::string& file_path, AVInputFormat* fmt, AVDictionary** options);
+    FFmpegStatusDetail open_input(
+        const std::string& file_path,
+        AVInputFormat* fmt,
+        AVDictionary** options);
     void close_input();
-    AVError find_stream_info(AVDictionary** options);
-    AVError read_frame(AVPacketPtr packet);
+    FFmpegStatusDetail find_stream_info(AVDictionary** options);
+    FFmpegStatusDetail read_frame(AVPacketPtr& packet);
     AVFormatContext* get()const;
+    bool is_valid()const;
+    bool is_open_input()const;
     AVFormatContext* operator->()const;
     operator bool()const;
     ~AVFormatContextPtr();
 private:
+    bool m_is_open_input = false;
     AVFormatContext* m_av_format_context = nullptr;
 };
