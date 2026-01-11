@@ -1,5 +1,6 @@
 #include <QApplication>
 
+#include <SDL2/SDL_main.h>
 #include <danejoe/logger/logger_manager.hpp>
 
 #include "main/player_app.hpp"

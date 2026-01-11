@@ -1,4 +1,5 @@
 #include <QTimer>
+#include <QFileInfo>
 
 extern "C"
 {
@@ -38,6 +39,14 @@ void MediaDecodeWorker::decode_tick()
     {
         init_decoder();
     }
+    if (is_update_file_path)
+    {
+        return;
+    }
+    if (!m_format_context.is_open_input())
+    {
+        return;
+    }
     decode_to_packet();
 }
 uint64_t MediaDecodeWorker::get_media_duration() const
@@ -59,7 +68,6 @@ void MediaDecodeWorker::set_media_file_path(QString video_file_path)
 
 bool MediaDecodeWorker::init_decoder()
 {
-    is_update_file_path = false;
     if (!m_format_context)
     {
         return false;
@@ -71,6 +79,17 @@ bool MediaDecodeWorker::init_decoder()
         m_default_video_stream_index.reset();
         m_default_audio_stream_index.reset();
     }
+    if (m_video_file_path.isEmpty())
+    {
+        return false;
+    }
+    auto file_info = QFileInfo(m_video_file_path);
+    if (!file_info.exists())
+    {
+        DANEJOE_LOG_ERROR("default", "decode_mp4", "Failed to set media file path: file not exists!");
+        return false;
+    }
+    is_update_file_path = false;
     /// @brief 打开输入流并读取标头。编解码器未打开。
     auto open_input_status =
         m_format_context.open_input(m_video_file_path.toStdString().c_str(), nullptr, nullptr);
@@ -79,6 +98,9 @@ bool MediaDecodeWorker::init_decoder()
         DANEJOE_LOG_ERROR("default", "decode_mp4", "Failed to open input: {}", open_input_status.message());
         return false;
     }
+    SessionEntity session;
+    session.session_id = m_session_id;
+    emit session_ready(session);
     /// @brief 新增：探测流信息,不调用不能获取duration
     auto find_stream_status =
         m_format_context.find_stream_info(nullptr);
@@ -118,7 +140,7 @@ bool MediaDecodeWorker::init_decoder()
         /// @note 高版本无法直接通过nb_streams[i]获取参数
         auto codecpar = stream->codecpar;
 
-        m_codec_contexts.emplace(i, AVCodecContextPtrPending{ AVCodecContextPtr(),codecpar->codec_type,0 });
+        m_codec_contexts.emplace(i, AVCodecContextPtrPending{ AVCodecContextPtr(),codecpar->codec_type,0,stream->time_base });
         const AVCodec* codec =
             avcodec_find_decoder(codecpar->codec_id);
         if (!codec)
@@ -213,22 +235,22 @@ bool MediaDecodeWorker::decode_to_frame(unsigned int stream_index, AVPacketPtr& 
         }
         else if (receive_frame_status.is_ok())
         {
+            int64_t relative_time_us = av_rescale_q(frame->pts, codec_context_pendding_it->second.time_base, AVRational{ 1, 1000000 });
             switch (codec_context_pendding_it->second.type)
             {
                 case AVMEDIA_TYPE_VIDEO:
                 {
                     auto video_frame_id =
                         codec_context_pendding_it->second.frame_id++;
-                    emit video_frame_ready({ m_session_id,video_frame_id,frame });
-                    DANEJOE_LOG_DEBUG("default", "decode_mp4", "video frame_id:{}", video_frame_id);
+                    emit video_frame_ready({ m_session_id,video_frame_id,relative_time_us,frame });
                 }
                 break;
                 case AVMEDIA_TYPE_AUDIO:
                 {
                     auto audio_frame_id =
                         codec_context_pendding_it->second.frame_id++;
-                    emit audio_frame_ready({ m_session_id,audio_frame_id,frame });
-                    DANEJOE_LOG_DEBUG("default", "decode_mp4", "audio frame_id:{}", audio_frame_id);
+                    emit audio_frame_ready({ m_session_id,audio_frame_id,relative_time_us,frame });
+                    // DANEJOE_LOG_DEBUG("default", "decode_mp4", "audio frame_id:{}", audio_frame_id);
                 }
                 break;
                 default:
@@ -266,8 +288,7 @@ void MediaDecodeWorker::on_init()
 
 void MediaDecodeWorker::on_decode_media_file(int64_t session_id, QString video_file_path)
 {
-    // m_video_file_path = video_file_path;
-    // m_session_id = session_id;
-    // m_video_frame_id = 0;
-    // is_update_file_path = true;
+    m_video_file_path = video_file_path;
+    m_session_id = session_id;
+    is_update_file_path = true;
 }

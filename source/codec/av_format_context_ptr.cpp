@@ -69,7 +69,7 @@ FFmpegStatusDetail AVFormatContextPtr::find_stream_info(AVDictionary** options)
 {
     if (!m_av_format_context)
     {
-        DANEJOE_LOG_WARN("default","AVFormatContextPtr","Failed to find stream info,av_format_context is null");
+        DANEJOE_LOG_WARN("default", "AVFormatContextPtr", "Failed to find stream info,av_format_context is null");
         return FFmpegStatusDetail(AVERROR(EINVAL));
     }
     return FFmpegStatusDetail(avformat_find_stream_info(m_av_format_context, options));
@@ -79,7 +79,11 @@ FFmpegStatusDetail AVFormatContextPtr::read_frame(AVPacketPtr& packet)
 {
     if (!m_av_format_context)
     {
-        DANEJOE_LOG_WARN("default","AVFormatContextPtr","Failed to read frame,av_format_context is null");
+        DANEJOE_LOG_WARN("default", "AVFormatContextPtr", "Failed to read frame,av_format_context is null");
+        return FFmpegStatusDetail(AVERROR(EINVAL));
+    }
+    if (!packet.get())
+    {
         return FFmpegStatusDetail(AVERROR(EINVAL));
     }
     return FFmpegStatusDetail(av_read_frame(m_av_format_context, packet.get()));

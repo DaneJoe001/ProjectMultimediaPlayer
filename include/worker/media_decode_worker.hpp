@@ -13,6 +13,7 @@ extern "C"
 #include "codec/av_packet_ptr.hpp"
 #include "codec/av_format_context_ptr.hpp"
 #include "codec/av_codec_context_ptr.hpp"
+#include "model/session_entity.hpp"
 
 #include "model/session_frame.hpp"
 
@@ -21,6 +22,7 @@ struct AVCodecContextPtrPending
     AVCodecContextPtr codec_context;
     AVMediaType type;
     int64_t frame_id;
+    AVRational time_base;
 };
 
 class MediaDecodeWorker : public QObject
@@ -37,6 +39,7 @@ public:
     bool decode_to_packet();
     bool decode_to_frame(unsigned int stream_index, AVPacketPtr& packet);
 signals:
+    void session_ready(SessionEntity session);
     void video_frame_ready(SessionFrame frame);
     void audio_frame_ready(SessionFrame frame);
 public slots:
@@ -47,7 +50,7 @@ private:
     int64_t m_session_id = 0;
 
     bool is_update_file_path = true;
-    QString m_video_file_path = "E:/personal_code/code_cpp_project/cpp_project_multimedia/resource/demon_slayer_brother_sister_bond.mp4";
+    QString m_video_file_path;
     QTimer* m_decode_timer = nullptr;
 
     AVFormatContextPtr m_format_context;

@@ -8,5 +8,6 @@ struct SessionFrame
 {
     int64_t session_id;
     int64_t frame_id;
+    int64_t relative_time_us;
     AVFramePtr frame;
 };

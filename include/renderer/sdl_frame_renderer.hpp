@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <atomic>
 
 #include <SDL2/SDL.h>
 
@@ -67,7 +68,8 @@ using SDL_texture_ptr = std::unique_ptr<SDL_Texture, SDL_texture_deleter>;
  * @brief SDL渲染器
  * @note 使用SDL渲染图像
  */
-class SDLFrameRenderer : public IFrameRenderer {
+class SDLFrameRenderer : public IFrameRenderer
+{
 public:
     /**
      * @brief 构造函数

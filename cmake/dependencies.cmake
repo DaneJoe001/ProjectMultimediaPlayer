@@ -53,6 +53,20 @@ if(DEFINED FFMPEG_LIBRARY_DIRS)
     target_link_directories(${CORE_LIB_NAME} PUBLIC ${FFMPEG_LIBRARY_DIRS})
 endif()
 
+if(MSVC)
+    set(_ffmpeg_library_search_dirs)
+    if(DEFINED FFMPEG_LIBRARY_DIR)
+        list(APPEND _ffmpeg_library_search_dirs "${FFMPEG_LIBRARY_DIR}")
+    endif()
+    if(DEFINED FFMPEG_LIBRARY_DIRS)
+        list(APPEND _ffmpeg_library_search_dirs ${FFMPEG_LIBRARY_DIRS})
+    endif()
+    if(_ffmpeg_library_search_dirs)
+        find_library(SWRESAMPLE_LIBRARY NAMES swresample PATHS ${_ffmpeg_library_search_dirs} NO_DEFAULT_PATH)
+    endif()
+    unset(_ffmpeg_library_search_dirs)
+endif()
+
 target_link_libraries(${CORE_LIB_NAME} PRIVATE
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
     $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
@@ -64,6 +78,11 @@ if(MSVC AND DEFINED AVCODEC_LIBRARY AND DEFINED AVFORMAT_LIBRARY AND DEFINED AVU
         ${AVFORMAT_LIBRARY}
         ${AVUTIL_LIBRARY}
     )
+    if(DEFINED SWRESAMPLE_LIBRARY)
+        target_link_libraries(${CORE_LIB_NAME} PRIVATE
+            ${SWRESAMPLE_LIBRARY}
+        )
+    endif()
 else()
     target_link_libraries(${CORE_LIB_NAME} PRIVATE ${FFMPEG_LIBRARIES})
 endif()

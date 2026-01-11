@@ -34,7 +34,8 @@ void SDLFrameWidget::init()
     }
     m_is_init = true;
     // 创建一个QLabel，用于显示SDL渲染的图像
-    m_sdl_label = new QLabel("sdl_label", this);
+    // m_sdl_label = new QLabel("sdl_label", this);
+    m_sdl_label = new QLabel(this);
     m_sdl_label->setStyleSheet("background-color: rgb(0, 0, 0);color: rgb(255, 255, 255);");
     this->setStyleSheet("background-color: rgb(255, 0, 0);color: rgba(44, 255, 58, 1);");
     m_sdl_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -52,7 +53,11 @@ void SDLFrameWidget::init_renderer()
 {
     if (m_renderer) return;
     m_renderer = std::make_shared<SDLFrameRenderer>();
-    DaneJoe::Size<int> size = { m_sdl_label->size().width(), m_sdl_label->size().height() };
+    auto s1 = m_sdl_label->contentsRect().size();
+    auto dpr = m_sdl_label->devicePixelRatioF();
+    auto pixel_size = QSize(s1.width() * dpr, s1.height() * dpr);
+    DaneJoe::Size<int> size = { pixel_size.width(), pixel_size.height() };
+
     DANEJOE_LOG_TRACE("default", "SDLFrameWidget", "Label size: {}, {}", size.x, size.y);
     bool is_set_window = m_renderer->set_window("sdl_window", size, (void*)m_sdl_label->winId());
     if (!is_set_window)
@@ -92,13 +97,15 @@ void SDLFrameWidget::resizeEvent(QResizeEvent* event)
 {
 
     QWidget::resizeEvent(event);
-    auto s1 = m_sdl_label->contentsRect().size();
     if (!m_renderer)
     {
         DANEJOE_LOG_TRACE("default", "SDLFrameWidget", "Renderer is invalid");
         return;
     }
-    m_renderer->update_window_size({ s1.width(), s1.height() });
+    auto s1 = m_sdl_label->contentsRect().size();
+    auto dpr = m_sdl_label->devicePixelRatioF();
+    auto pixel_size = QSize(s1.width() * dpr, s1.height() * dpr);
+    m_renderer->update_window_size({ pixel_size.width(), pixel_size.height() });
     m_sdl_label->update();
 }
 
