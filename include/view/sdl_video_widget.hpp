@@ -1,3 +1,10 @@
+/**
+ * @file sdl_video_widget.hpp
+ * @brief SDL视频组件
+ * @author DaneJoe001
+ * @date 2026-01-12
+ */
+
 #pragma once
 
 #include <memory>
@@ -21,10 +28,9 @@ class QVBoxLayout;
 class QLabel;
 
 /**
- * @class WindowMain
- * @brief 主窗口
- * @note 主窗口
-  */
+ * @class SDLVideoWidget
+ * @brief SDL视频组件
+ */
 class SDLVideoWidget :public QWidget
 {
     Q_OBJECT
@@ -39,9 +45,23 @@ public:
      * @note 释放资源
      */
     ~SDLVideoWidget();
+    /**
+     * @brief 初始化
+     */
     void init();
+    /**
+     * @brief 关闭
+     */
     void close();
+    /**
+     * @brief 休眠
+     * @param ms 休眠时间
+     */
     void sleep(std::chrono::milliseconds ms);
+    /**
+     * @brief 获取帧队列
+     * @return 帧队列弱引用
+     */
     std::weak_ptr<DaneJoe::MpmcBoundedQueue<AVFramePtr>> get_frame_queue();
 private:
     /**
@@ -64,6 +84,9 @@ private:
      * @param event 事件
      */
     void closeEvent(QCloseEvent* event)override;
+    /**
+     * @brief 初始化渲染器
+     */
     void init_renderer();
 private:
     /// @brief 是否初始化

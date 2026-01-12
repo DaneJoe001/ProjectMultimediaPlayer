@@ -1,3 +1,10 @@
+/**
+ * @file util_vector_2d.hpp
+ * @brief 二维向量工具
+ * @author DaneJoe001
+ * @date 2026-01-12
+ */
+
 #pragma once
 
 #include <cmath>
@@ -19,14 +26,23 @@ namespace DaneJoe
          */
         enum class Quadrant
         {
+            /// @brief 第一象限
             FIRST,
+            /// @brief 第二象限
             SECOND,
+            /// @brief 第三象限
             THIRD,
+            /// @brief 第四象限
             FOURTH,
+            /// @brief X轴正方向
             POSITIVE_X,
+            /// @brief X轴负方向
             NEGATIVE_X,
+            /// @brief Y轴正方向
             POSITIVE_Y,
+            /// @brief Y轴负方向
             NEGATIVE_Y,
+            /// @brief 原点
             CENTER
         };
         /**
@@ -35,14 +51,23 @@ namespace DaneJoe
          */
         enum class Direction
         {
+            /// @brief 北
             NORTH,
+            /// @brief 南
             SOUTH,
+            /// @brief 东
             EAST,
+            /// @brief 西
             WEST,
+            /// @brief 东北
             NORTH_EAST,
+            /// @brief 西北
             NORTH_WEST,
+            /// @brief 东南
             SOUTH_EAST,
+            /// @brief 西南
             SOUTH_WEST,
+            /// @brief 中心
             CENTER,
         };
         /**
@@ -144,6 +169,8 @@ namespace DaneJoe
         }
         /**
          * @brief 获取点到目标点的距离
+         * @param dest_point 目标点
+         * @return 距离
          */
         double get_distance(const Vector2D<T>& dest_point)const
         {
@@ -195,6 +222,11 @@ namespace DaneJoe
             return Vector2D<T>(x + rhs.x, y + rhs.y);
         }
 
+        /**
+         * @brief Vector2D::operator-
+         * @param rhs
+         * @return 两个向量的差
+         */
         Vector2D<T> operator-(const Vector2D<T>& rhs) const
         {
             return Vector2D<T>(x - rhs.x, y - rhs.y);

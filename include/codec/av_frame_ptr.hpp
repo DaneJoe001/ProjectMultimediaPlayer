@@ -1,3 +1,10 @@
+/**
+ * @file av_frame_ptr.hpp
+ * @brief AVFrame的RAII封装
+ * @author DaneJoe001
+ * @date 2026-01-12
+ */
+
 #pragma once
 
 extern "C"
@@ -48,38 +55,51 @@ public:
     AVFramePtr& operator=(AVFramePtr&& frame) noexcept;
     /**
      * @brief 获取 AVFrame 指针（可能为 nullptr）。
+     * @return AVFrame指针，若未分配则为nullptr
      */
     AVFrame* get() noexcept;
     /**
      * @brief 获取 AVFrame 指针（const 版本，可能为 nullptr）。
+     * @return AVFrame指针，若未分配则为nullptr
      */
     const AVFrame* get() const noexcept;
     /**
      * @brief 分配并初始化底层缓冲；失败返回错误码。
+     * @param width 宽度
+     * @param height 高度
+     * @param format 像素格式
+     * @param align 对齐方式（0 表示使用默认对齐）
+     * @return FFmpeg状态详情
      */
     FFmpegStatusDetail init(int width, int height, AVPixelFormat format, int align = 0);
     /**
      * @brief 获取 AVFrame 指针（语法糖）。
+     * @return AVFrame指针，若未分配则为nullptr
      */
     AVFrame* operator->() noexcept;
     /**
      * @brief 获取 AVFrame 指针（const 语法糖）。
+     * @return AVFrame指针，若未分配则为nullptr
      */
     const AVFrame* operator->() const noexcept;
     /**
      * @brief 解引用（未分配时解引用 UB，由调用方保证非空）。
+     * @return AVFrame引用
      */
     AVFrame& operator*() noexcept;
     /**
      * @brief 解引用（const）。
+     * @return AVFrame引用
      */
     const AVFrame& operator*() const noexcept;
     /**
      * @brief 是否持有底层 AVFrame 指针。
+     * @return true 表示已持有，false 表示未持有
      */
     explicit operator bool() const noexcept;
     /**
      * @brief 返回底层缓冲的引用计数（当存在 `buf[0]` 时）。
+     * @return 引用计数
      */
     std::size_t use_count() const noexcept;
     /**
@@ -92,14 +112,17 @@ public:
     void unref() noexcept;
     /**
      * @brief 确保已分配结构体（惰性分配）；失败时设置错误码并返回。
+     * @return FFmpeg状态详情
      */
     FFmpegStatusDetail ensure_allocated() noexcept;
     /**
      * @brief 释放所有权并返回裸指针（调用者负责 `av_frame_free`）。
+     * @return AVFrame指针，调用者负责释放
      */
     AVFrame* release() noexcept;
     /**
      * @brief 与另一对象交换内部状态（noexcept）。
+     * @param other 另一对象
      */
     void swap(AVFramePtr& other) noexcept;
     /**
@@ -107,6 +130,7 @@ public:
      */
     ~AVFramePtr() noexcept;
 private:
+    /// @brief AVFrame指针
     AVFrame* m_frame = nullptr;
 };
 

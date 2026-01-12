@@ -1,3 +1,10 @@
+/**
+ * @file i_frame_renderer.hpp
+ * @brief 帧渲染接口
+ * @author DaneJoe001
+ * @date 2026-01-12
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -24,9 +31,13 @@ public:
    */
   enum class FrameFmt
   {
+    /// @brief RGB888
     RGB888,
+    /// @brief RGBA8888
     RGBA8888,
+    /// @brief ARGB8888
     ARGB8888,
+    /// @brief YUV420P
     YUV420P,
   };
   /**
@@ -54,36 +65,50 @@ public:
   };
 
 public:
+  /**
+   * @brief 构造函数
+   */
   IFrameRenderer();
   /**
    * @brief 设置帧格式
+   * @param fmt 帧格式
    */
   virtual void set_fmt(FrameFmt fmt) = 0;
   /**
    * @brief 初始化
+   * @return true 表示初始化成功，false 表示初始化失败
    */
   virtual bool init() = 0;
   /**
    * @brief 退出
+   * @return true 表示已退出，false 表示未退出
    */
   virtual bool is_exit() = 0;
   /**
    * @brief 绘制
    * @param frame 帧数据
+   * @return true 表示绘制成功，false 表示绘制失败
    */
   virtual bool draw(std::shared_ptr<Frame> frame) = 0;
+  /**
+   * @brief 绘制
+   * @param frame ffmpeg帧数据
+   * @return true 表示绘制成功，false 表示绘制失败
+   */
   virtual bool draw(AVFramePtr frame) = 0;
   /**
    * @brief 设置窗口
    * @param window_name 窗口名
    * @param window_size 窗口大小
    * @param window 窗口指针
+   * @return true 表示设置成功，false 表示设置失败
    */
   virtual bool set_window(std::string window_name,
     DaneJoe::Size<int> window_size, void* window) = 0;
   /**
    * @brief 更新窗口大小
    * @param window_size 窗口大小
+   * @return true 表示更新成功，false 表示更新失败
    */
   virtual bool update_window_size(DaneJoe::Size<int> window_size) = 0;
   /**
@@ -93,10 +118,12 @@ public:
   /**
    * @brief 设置窗口尺寸
    * @param size 窗口尺寸
+   * @return true 表示设置成功，false 表示设置失败
    */
   bool set_window_size(const DaneJoe::Size<int>& size);
 
 protected:
+  /// @brief 基础错误码数量
   const int BASE_ERROR_CODE_QUANTITY = 2;
 
 protected:

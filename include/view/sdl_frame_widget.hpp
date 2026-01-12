@@ -1,3 +1,10 @@
+/**
+ * @file sdl_frame_widget.hpp
+ * @brief SDL帧组件
+ * @author DaneJoe001
+ * @date 2026-01-12
+ */
+
 #pragma once
 
 #include <memory>
@@ -19,10 +26,9 @@ class QVBoxLayout;
 class QLabel;
 
 /**
- * @class WindowMain
- * @brief 主窗口
- * @note 主窗口
-  */
+ * @class SDLFrameWidget
+ * @brief SDL帧组件
+ */
 class SDLFrameWidget :public QWidget
 {
     Q_OBJECT
@@ -37,11 +43,29 @@ public:
      * @note 释放资源
      */
     ~SDLFrameWidget();
+    /**
+     * @brief 初始化
+     */
     void init();
+    /**
+     * @brief 绘制
+     * @param frame ffmpeg帧
+     */
     void draw(AVFramePtr frame);
+    /**
+     * @brief 窗口大小改变事件
+     * @param event 事件
+     */
     void resizeEvent(QResizeEvent* event);
+    /**
+     * @brief 窗口显示事件
+     * @param event 事件
+     */
     void showEvent(QShowEvent* event);
 private:
+    /**
+     * @brief 初始化渲染器
+     */
     void init_renderer();
 private:
     /// @brief 是否初始化
