@@ -47,6 +47,10 @@ void MediaDecodeWorker::decode_tick()
     {
         return;
     }
+    if (m_is_paused)
+    {
+        return;
+    }
     decode_to_packet();
 }
 uint64_t MediaDecodeWorker::get_media_duration() const
@@ -281,9 +285,11 @@ bool MediaDecodeWorker::decode_to_frame(unsigned int stream_index, AVPacketPtr& 
     return true;
 }
 
-void MediaDecodeWorker::on_init()
+void MediaDecodeWorker::on_init() { init(); }
+
+void MediaDecodeWorker::on_decode_paused(bool is_paused)
 {
-    init();
+    m_is_paused = is_paused;
 }
 
 void MediaDecodeWorker::on_decode_media_file(int64_t session_id, QString video_file_path)

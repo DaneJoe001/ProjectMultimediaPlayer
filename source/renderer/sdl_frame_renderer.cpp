@@ -125,16 +125,16 @@ SDL_PixelFormatEnum SDLFrameRenderer::fmt_convert(FrameFmt fmt)
 {
     switch (fmt)
     {
-    case FrameFmt::RGB888:
-        return SDL_PIXELFORMAT_RGB888;
-    case FrameFmt::RGBA8888:
-        return SDL_PIXELFORMAT_RGBA8888;
-    case FrameFmt::YUV420P:
-        return SDL_PIXELFORMAT_IYUV;
-    case FrameFmt::ARGB8888:
-        return SDL_PIXELFORMAT_ARGB8888;
-    default:
-        return SDL_PIXELFORMAT_UNKNOWN;
+        case FrameFmt::RGB888:
+            return SDL_PIXELFORMAT_RGB888;
+        case FrameFmt::RGBA8888:
+            return SDL_PIXELFORMAT_RGBA8888;
+        case FrameFmt::YUV420P:
+            return SDL_PIXELFORMAT_IYUV;
+        case FrameFmt::ARGB8888:
+            return SDL_PIXELFORMAT_ARGB8888;
+        default:
+            return SDL_PIXELFORMAT_UNKNOWN;
     }
 }
 
@@ -163,9 +163,19 @@ bool SDLFrameRenderer::draw(
         DANEJOE_LOG_ERROR("default", "SDLFrameRenderer", "invalid param");
         return false;
     }
+    if (m_texture_size.x != width || m_texture_size.y != height)
+    {
+        m_texture.reset();
+        m_texture_size = { width, height };
+    }
     if (!m_texture)
     {
-        SDL_Texture* texture = SDL_CreateTexture(m_renderer.get(), SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, width, height);
+        SDL_Texture* texture = SDL_CreateTexture(m_renderer.get(), SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, width, height);
+        if (!texture)
+        {
+            DANEJOE_LOG_ERROR("default", "SDLFrameRenderer", "create texture failed:{}", SDL_GetError());
+            return false;
+        }
         m_texture.reset(texture);
     }
     if (!m_texture)
@@ -208,18 +218,18 @@ bool SDLFrameRenderer::draw(AVFramePtr frame)
     }
     switch (frame->format)
     {
-    case AV_PIX_FMT_YUV420P:
-        return draw(frame->data[0],
-            frame->linesize[0],
-            frame->data[1],
-            frame->linesize[1],
-            frame->data[2],
-            frame->linesize[2],
-            frame->width,
-            frame->height);
-    default:
-        DANEJOE_LOG_WARN("default", "SDLFrameRenderer", "unsupport format");
-        return false;
+        case AV_PIX_FMT_YUV420P:
+            return draw(frame->data[0],
+                frame->linesize[0],
+                frame->data[1],
+                frame->linesize[1],
+                frame->data[2],
+                frame->linesize[2],
+                frame->width,
+                frame->height);
+        default:
+            DANEJOE_LOG_WARN("default", "SDLFrameRenderer", "unsupport format");
+            return false;
     }
     return true;
 

@@ -130,6 +130,7 @@ private:
      */
     SDL_PixelFormatEnum fmt_convert(FrameFmt fmt);
     bool update_texture(std::shared_ptr<Frame> frame);
+    bool update_texture(AVFramePtr frame);
 private:
     const DaneJoe::Size<int> m_default_size = { 640, 480 };
 private:

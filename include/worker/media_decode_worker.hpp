@@ -43,6 +43,7 @@ signals:
     void video_frame_ready(SessionFrame frame);
     void audio_frame_ready(SessionFrame frame);
 public slots:
+    void on_decode_paused(bool is_paused);
     void on_init();
     void on_decode_media_file(int64_t session_id, QString video_file_path);
 private:
@@ -50,6 +51,7 @@ private:
     int64_t m_session_id = 0;
 
     bool is_update_file_path = true;
+    bool m_is_paused = false;
     QString m_video_file_path;
     QTimer* m_decode_timer = nullptr;
 

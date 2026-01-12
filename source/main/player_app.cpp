@@ -45,7 +45,9 @@ void PlayerApp::init()
     connect(m_media_controller, &MediaController::renderer_video_frame,
         m_main_window, &MainWindow::on_frame_ready);
 
-    connect(m_main_window, &MainWindow::open_media_file, this, &PlayerApp::on_open_midea_file);
+    connect(m_main_window, &MainWindow::open_media_file, this,
+        &PlayerApp::on_open_midea_file);
+    connect(m_media_controller, &MediaController::paused_decode, m_media_decode_service, &MediaDecodeService::on_paused_decode);
 
 
     // on_open_midea_file("E:/personal_code/code_cpp_project/cpp_project_multimedia/resource/demon_slayer_brother_sister_bond.mp4");
@@ -107,6 +109,18 @@ void PlayerApp::init_database()
 
 void PlayerApp::on_open_midea_file(QString video_file_path)
 {
+    if (m_sdl_audio_worker)
+    {
+        m_sdl_audio_worker->request_stop();
+        QMetaObject::invokeMethod(
+            m_sdl_audio_worker,
+            "on_stop_audio",
+            Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            m_sdl_audio_worker,
+            "on_start_audio",
+            Qt::BlockingQueuedConnection);
+    }
     m_media_decode_service->on_decode_media_file(video_file_path);
     m_time_service->reset_audio_time();
 }

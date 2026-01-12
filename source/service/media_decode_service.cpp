@@ -38,7 +38,9 @@ void MediaDecodeService::init()
     connect(m_decode_worker, &MediaDecodeWorker::video_frame_ready, m_media_controller, &MediaController::on_video_frame_ready);
     connect(m_decode_worker, &MediaDecodeWorker::audio_frame_ready, m_media_controller, &MediaController::on_audio_frame_ready);
     connect(m_decode_worker, &MediaDecodeWorker::session_ready, m_media_controller, &MediaController::on_session_ready);
-    connect(m_decode_thread, &QThread::started, m_decode_worker, &MediaDecodeWorker::on_init);
+    connect(m_decode_thread, &QThread::started, m_decode_worker,
+        &MediaDecodeWorker::on_init);
+    connect(this, &MediaDecodeService::paused_decode, m_decode_worker, &MediaDecodeWorker::on_decode_paused);
 
     m_decode_thread->start();
 }
@@ -56,4 +58,9 @@ void MediaDecodeService::on_decode_media_file(QString video_file_path)
     auto session_id = m_session_id++;
     m_media_controller->on_clear_buffer();
     emit decode_media_file(session_id, video_file_path);
+}
+
+void MediaDecodeService::on_paused_decode(bool is_paused)
+{
+    emit paused_decode(is_paused);
 }

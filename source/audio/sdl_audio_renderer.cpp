@@ -99,11 +99,13 @@ void SDLAudioRenderer::start()
     stop();
     auto audio_callback = [](void* userdata, Uint8* stream, int len)
         {
-            auto* self = static_cast<SDLAudioRenderer*>(userdata);
-            auto data = self->m_pcm_buffer.try_pop(len);
             SDL_memset(stream, 0, len);
-            int64_t us = static_cast<int64_t>(len) * 1000 * 1000 / self->get_bytes_per_second();
-            self->m_time_service->add_audio_time_us(us);
+            auto* self = static_cast<SDLAudioRenderer*>(userdata);
+            if (!self->m_is_playing.load())
+            {
+                return;
+            }
+            auto data = self->m_pcm_buffer.try_pop(len);
             int copy_size = static_cast<int>(data.size());
 
             if (copy_size > len)
@@ -112,6 +114,8 @@ void SDLAudioRenderer::start()
             }
             if (self->m_is_playing.load() && copy_size > 0)
             {
+                int64_t us = static_cast<int64_t>(copy_size) * 1000 * 1000 / self->get_bytes_per_second();
+                self->m_time_service->add_audio_time_us(us);
                 std::memcpy(stream, data.data(), copy_size);
             }
         };
@@ -141,7 +145,14 @@ void SDLAudioRenderer::stop()
     if (m_device_id > 0)
     {
         m_is_playing.store(false);
-        m_pcm_buffer.try_pop(192000);
+        while (true)
+        {
+            auto data = m_pcm_buffer.try_pop(192000);
+            if (data.empty())
+            {
+                break;
+            }
+        }
         SDL_PauseAudioDevice(m_device_id, 1);
 
         SDL_CloseAudioDevice(m_device_id);

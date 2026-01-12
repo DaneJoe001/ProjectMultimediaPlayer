@@ -27,11 +27,11 @@ public:
 signals:
     void video_frame_ready(SessionFrame frame);
     void audio_frame_ready(SessionFrame frame);
-    void decode_media_file(
-        int64_t session_id,
-        QString video_file_path);
+    void decode_media_file(int64_t session_id, QString video_file_path);
+    void paused_decode(bool is_paused);
 public slots:
     void on_decode_media_file(QString video_file_path);
+    void on_paused_decode(bool is_paused);
 private:
     std::atomic<int64_t> m_session_id = 0;
     QThread* m_decode_thread = nullptr;

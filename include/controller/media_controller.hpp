@@ -2,6 +2,8 @@
 
 #include <queue>
 #include <memory>
+#include <optional>
+#include <atomic>
 
 #include <QObject>
 #include <QTimer>
@@ -24,12 +26,15 @@ public:
     Q_OBJECT
 public:
     MediaController(std::shared_ptr<TimeService> time_service, QObject* parent = nullptr);
+    ~MediaController() override;
     void init();
     void stop_audio();
     void stop_video();
+
 signals:
     void renderer_video_frame(SessionFrame frame);
     void renderer_audio_frame(SessionFrame frame);
+    void paused_decode(bool is_paused);
 public slots:
     void on_clear_buffer();
     void on_session_ready(SessionEntity session);
@@ -44,4 +49,13 @@ private:
     SessionEntity m_session;
     QQueue<SessionFrame> m_video_frames;
     QQueue<SessionFrame> m_audio_frames;
+    std::optional<int64_t> m_audio_pts_base_us;
+    std::atomic<int64_t> m_metrics_video_rendered = 0;
+    std::atomic<int64_t> m_metrics_video_dropped = 0;
+    std::atomic<int64_t> m_metrics_diff_sum_us = 0;
+    std::atomic<int64_t> m_metrics_diff_count = 0;
+    std::atomic<int64_t> m_metrics_diff_max_abs_us = 0;
+    std::atomic<int64_t> m_metrics_video_queue_size = 0;
+    std::atomic<int64_t> m_metrics_audio_queue_size = 0;
+    uint64_t m_metrics_task_id = 0;
 };
