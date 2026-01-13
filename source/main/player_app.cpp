@@ -93,7 +93,7 @@ void PlayerApp::init_logger()
     auto logger = DaneJoe::LoggerManager::get_instance().get_logger("default");
     logger->set_config(config);
     DaneJoe::LogOutputSetting output_setting;
-    output_setting.enable_function_name = true;
+    // output_setting.enable_function_name = true;
     output_setting.enable_line_num = true;
     output_setting.enable_thread_id = true;
     logger->set_output_settings(output_setting);

@@ -68,6 +68,7 @@ void MediaController::on_clear_buffer()
     m_audio_frames.clear();
     m_video_frames.clear();
     m_audio_pts_base_us.reset();
+    emit paused_decode(false);
     m_metrics_video_queue_size.store(0);
     m_metrics_audio_queue_size.store(0);
 }
@@ -80,7 +81,7 @@ void MediaController::on_session_ready(SessionEntity session)
 void MediaController::on_video_frame_ready(SessionFrame frame)
 {
     m_video_frames.enqueue(frame);
-    if (m_video_frames.size() >= 256)
+    if (m_video_frames.size() >= 64)
     {
         emit paused_decode(true);
     }
@@ -141,7 +142,7 @@ void MediaController::on_video_frame_timer_tick()
     {
     }
     emit renderer_video_frame(m_video_frames.dequeue());
-    if (m_video_frames.size() < 128)
+    if (m_video_frames.size() < 32)
     {
         emit paused_decode(false);
     }

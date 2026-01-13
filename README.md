@@ -22,6 +22,12 @@
 
 - **可观测性（Observability）**
   - 通过周期性输出 `METRIC` 日志（fps / drop / A/V diff / queue_len）辅助定位性能与同步问题
+
+```text
+[2026-01-12 13:09:39] [INFO] [METRIC] [...] [fps=30 drop=0 vq=21 aq=0 av_diff_avg=10.17ms av_diff_max=14.78ms]
+[2026-01-12 13:09:42] [INFO] [METRIC] [...] [fps=30 drop=0 vq=49 aq=0 av_diff_avg=9.26ms av_diff_max=14.95ms]
+[2026-01-12 13:09:48] [INFO] [METRIC] [...] [fps=30 drop=0 vq=101 aq=1 av_diff_avg=10.20ms av_diff_max=14.00ms]
+```
 - **Backpressure（背压）**
   - 通过队列高/低水位控制解码暂停/恢复，避免长时间播放队列无限增长导致的内存占用与延迟上升
 
