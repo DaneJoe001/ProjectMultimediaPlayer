@@ -1,4 +1,4 @@
-if(ADD_QT_LIB)
+if(USE_QT)
     # @brief Qt6 组件列表
     set(QT_COMPONENTS "Core;Gui;Widgets;Sql;Network;OpenGL;OpenGLWidgets" CACHE STRING "Qt6 components to find and link (semicolon-separated list)")
     find_package(Qt6 REQUIRED COMPONENTS ${QT_COMPONENTS})
@@ -9,8 +9,8 @@ if(ADD_QT_LIB)
             AUTOUIC ON
         )
     endif()
-    if(TARGET ${EXECUTABLE_NAME})
-        set_target_properties(${EXECUTABLE_NAME} PROPERTIES
+    if(TARGET ${GUI_EXECUTABLE_NAME})
+        set_target_properties(${GUI_EXECUTABLE_NAME} PROPERTIES
             AUTOMOC ON
             AUTORCC ON
             AUTOUIC ON
@@ -22,9 +22,9 @@ if(ADD_QT_LIB)
     endforeach()
 endif()
 
-if(ADD_DANEJOE_LIB)
-    find_package(DaneJoe 0.2.0 CONFIG REQUIRED COMPONENTS Common Logger Database Concurrent Stringify)
-        target_link_libraries(${CORE_LIB_NAME} PUBLIC
+if(USE_DANEJOE)
+    find_package(DaneJoe 0.2.0 CONFIG REQUIRED COMPONENTS Common Logger Database Condition Concurrent Stringify)
+    target_link_libraries(${CORE_LIB_NAME} PUBLIC
         DaneJoe::Common
         DaneJoe::Logger
         DaneJoe::Database

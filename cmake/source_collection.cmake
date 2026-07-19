@@ -41,7 +41,7 @@ list(APPEND CORE_SOURCES
     ${NORMAL_DIR_SOURCES}
 )
 
-if(ADD_QT_LIB)
+if(USE_QT)
     list(APPEND CORE_SOURCES
         ${QOBJECT_DIR_SOURCES}
     )

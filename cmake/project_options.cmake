@@ -4,7 +4,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # @brief 仅在会生成 compile_commands.json 的生成器下复制（Ninja/Makefiles）
-if(CMAKE_EXPORT_COMPILE_COMMANDS AND CMAKE_GENERATOR MATCHES "Ninja|Makefiles")
+if(CMAKE_EXPORT_COMPILE_COMMANDS AND CMAKE_GENERATOR MATCHES "Ninja|Makefiles" AND NOT ENABLE_MSVC_ANALYZE)
   add_custom_target(update_compile_commands ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_BINARY_DIR}/compile_commands.json"
@@ -16,4 +16,6 @@ if(MSVC)
     add_compile_options(/utf-8)
     # @brief 禁用 CRT 安全警告
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+    add_compile_definitions(NOMINMAX)
 endif()
