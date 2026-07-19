@@ -3,10 +3,18 @@
 # ==============================
 .cursor/
 .vscode/
+.devin/
+.codex/
+.agent/
+agent/
+.claude/
 .vs/
 .idea/
 CMakeUserPresets.json
 compile_commands.json
+
+# Agent 本机运行工具
+tool/agent_workspace/
 
 # ==============================
 # 本机缓存/临时目录（不进仓库）
