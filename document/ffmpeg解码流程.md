@@ -1,137 +1,79 @@
-下面按 **FFmpeg 7.1.x（你写的 7.7.1 可能是笔误；截至我知识库，主线是 7.1/7.0 系列）** 的 API 思路，讲一套“解码链路最佳实践”（best practices）。如果你项目是 C++（你仓库也是 C++/CMake/MSVC），这些原则直接适用。
+# FFmpeg 解码流程
 
-# 1. 解码主流程（概览）
-解码视频/音频的推荐流水线基本一致：
+本文记录播放器使用 FFmpeg 解封装和解码时涉及的核心状态机、时间戳与生命周期约束。
 
-1. **打开输入**：`avformat_open_input`  
-2. **读流信息**：`avformat_find_stream_info`  
-3. **选流**：`av_find_best_stream`（视频/音频分别选）  
-4. **创建解码器上下文**：  
-   - `avcodec_find_decoder` / `avcodec_find_decoder_by_name`  
-   - `avcodec_alloc_context3`  
-   - `avcodec_parameters_to_context`  
-   - `avcodec_open2`
-5. **读包（demux）**：循环 `av_read_frame` 拿到 `AVPacket`
-6. **送包进解码器**：`avcodec_send_packet`
-7. **从解码器取帧**：`avcodec_receive_frame`（可能一次送包，多次出帧）
-8. **处理帧**：渲染 / 重采样 / 转码 / 入队列等
-9. **冲刷（flush）**：读完后对每个解码器 `avcodec_send_packet(ctx, nullptr)`，再 `receive_frame` 直到 `AVERROR_EOF`
-10. **释放资源**：按对象生命周期释放 `AVPacket/AVFrame/AVCodecContext/AVFormatContext`
+## 解码链路
 
-关键点：**“demux 与 decode 解耦”**，以及 **“send/receive 的状态机语义正确处理”**。
+1. 使用 `avformat_open_input` 打开输入。
+2. 使用 `avformat_find_stream_info`读取流信息。
+3. 使用 `av_find_best_stream` 选择音频流和视频流。
+4. 查找解码器，分配 `AVCodecContext`，复制 `codecpar` 并调用 `avcodec_open2`。
+5. 循环调用 `av_read_frame` 获取压缩数据包，并按 `stream_index` 分发。
+6. 使用 `avcodec_send_packet` 送入数据包。
+7. 循环调用 `avcodec_receive_frame`，直到当前输入不再产生输出帧。
+8. 将帧时间戳换算到统一时间基后交给调度、渲染或音频输出模块。
+9. 输入结束后向解码器发送空包，取完内部延迟帧。
 
----
+解封装负责从容器读取 packet，解码器负责把 packet 转换为 frame。两者具有独立的缓存和生命周期。
 
-# 2. `send_packet` / `receive_frame` 状态机（最容易踩坑）
-最佳实践是严格遵循以下规则：
+## Send/Receive 状态机
 
-## 2.1 正常解码循环（单解码器）
-对每个 `packet`：
+### 发送数据包
 
-- 调用 `avcodec_send_packet`
-  - 返回 `0`：成功接受输入
-  - 返回 `AVERROR(EAGAIN)`：表示解码器内部输出队列满了，你需要先 `receive_frame` 把帧取空后再送包
-  - 返回其他错误：直接处理失败（记录日志、丢弃或终止）
+`avcodec_send_packet` 的主要返回状态：
 
-- 然后循环 `avcodec_receive_frame`
-  - 返回 `0`：得到一帧，继续收（可能还有）
-  - 返回 `AVERROR(EAGAIN)`：当前没有更多输出帧，回去继续读下一包
-  - 返回 `AVERROR_EOF`：解码器已完全结束（通常在 flush 阶段出现）
-  - 返回其他错误：解码失败（通常需要重置/丢帧/终止）
+- `0`：解码器接受了输入。
+- `AVERROR(EAGAIN)`：必须先调用 `avcodec_receive_frame` 消费待输出帧。
+- `AVERROR_EOF`：解码器已经进入结束状态。
+- 其他负值：输入或解码器状态异常。
 
-**推荐模板（逻辑层面）**：
-- “送包成功后，尽可能把当前可输出的帧都取完”
-- “遇到 EAGAIN：该换另一侧动作（send 失败→先 receive；receive 失败→先 send）”
+### 接收帧
 
-## 2.2 flush 的正确姿势
-输入结束后：
+`avcodec_receive_frame` 的主要返回状态：
 
-- `avcodec_send_packet(ctx, nullptr)`  
-- 循环 `avcodec_receive_frame` 直到 `AVERROR_EOF`（或持续 `EAGAIN` 但通常不会长期发生）
+- `0`：得到一个完整输出帧，应继续尝试接收。
+- `AVERROR(EAGAIN)`：当前没有更多输出，需要继续发送输入。
+- `AVERROR_EOF`：延迟帧已经全部取完。
+- 其他负值：解码失败。
 
-flush 是必做的，否则 B 帧、重排序缓存会丢。
+一个 packet 可能产生零个、一个或多个 frame。不能假定发送和接收是一一对应关系，也不能把 `EAGAIN` 当作普通错误。
 
----
+## Flush
 
-# 3. 时间戳（PTS/DTS）与同步：最重要的“工程最佳实践”
-很多播放器“能播但不同步/跳帧/卡顿”就是这里不规范。
+输入结束后，对每个已打开的解码器调用：
 
-## 3.1 demux 层：拿到 packet 的时间基
-- `packet.pts` / `packet.dts` 在 `stream->time_base` 下
-- 统一转换用 `av_rescale_q`
+```cpp
+avcodec_send_packet(codec_context, nullptr);
+```
 
-## 3.2 decode 层：拿到 frame 的 PTS
-最佳实践：
-- 优先用 `frame->best_effort_timestamp`（FFmpeg 在很多情况下会补齐/推断）
-- 然后转换到一个统一时间基（常用 `AV_TIME_BASE_Q` 或 `1/1000` ms）
+随后继续调用 `avcodec_receive_frame`，直到返回 `AVERROR_EOF`。该步骤用于输出 B 帧和其他仍保存在解码器内部的延迟帧。
 
-## 3.3 音视频同步（AV sync）
-常见推荐：
-- **以音频为主时钟（audio master clock）**：视频根据音频时间做丢帧/延迟
-- 若无音频（纯视频）：用系统时钟/单调时钟（monotonic clock）
+切换媒体文件时不能复用已经进入 flush 状态的旧解码器。旧会话应停止生产数据，清空队列并重新创建输入和解码上下文。
 
----
+## 时间戳
 
-# 4. 线程模型：解码线程与 IO/渲染线程解耦
-工程上最稳的结构（适合你这种“解码服务 + 渲染器”分层）：
+- packet 的 `pts` 和 `dts` 使用所属 `AVStream::time_base`。
+- 解码后的显示时间优先使用 `AVFrame::best_effort_timestamp`。
+- 使用 `av_rescale_q` 转换时间基，避免用浮点数累计时间误差。
+- 音视频帧进入调度层前应转换到同一单位。本项目使用微秒。
 
-- **Demux 线程**：`av_read_frame`，按 stream id 分发到音频包队列、视频包队列
-- **Audio Decode 线程**：packet queue → `send/receive` → frame queue（或直接送重采样/音频设备）
-- **Video Decode 线程**：packet queue → `send/receive` → frame queue
-- **Render 线程/UI 线程**：从 video frame queue 按时钟取帧渲染（SDL/Qt/OpenGL）
+本项目以音频播放进度作为主时钟。视频帧早于播放时刻时等待，明显落后时丢弃，其余帧进入 SDL 渲染路径。
 
-队列最佳实践：
-- **有界队列（bounded queue）**，避免内存爆
-- 有“中止标记”（abort flag）和条件变量（condition_variable）
-- 入队时做背压（backpressure），例如队列满则等待或丢包（视频可丢，音频慎重）
+## 队列与线程
 
----
+- 解码任务运行在 worker 线程，GUI 操作保留在 Qt 主线程。
+- 音频输出运行在独立 `QThread`，关闭或切换文件时同步停止 SDL 音频设备。
+- 视频队列使用高低水位向解码线程施加背压。
+- 每个 frame 携带会话 ID，控制器丢弃不属于当前会话的迟到帧。
 
-# 5. 解码器参数与性能/稳定性建议
-## 5.1 多线程解码
-通常你会设置：
-- `codec_ctx->thread_count = std::thread::hardware_concurrency()`（或限制上限）
-- `codec_ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE`（视编解码器而定）
-但注意：
-- 低延迟场景（实时）可能不希望太深的 frame threading 带来延迟。
-- 某些硬解/特定 codec 对线程模型有限制，要按实际解码器行为调整。
+队列关闭、worker 停止和对象析构需要保持固定顺序，避免生产者继续向已销毁的消费者发送数据。
 
-## 5.2 低延迟（可选）
-如果是“直播/实时”：
-- 尽量减少缓存：控制队列大小
-- 合理设置 `AVFormatContext` 的探测与缓冲（`probesize`/`analyzeduration` 等），但这属于“输入协议/封装”相关，需按场景调参
+## 格式转换
 
----
+- 视频解码帧可能是 YUV420P、NV12、P010 或其他像素格式。SDL texture 不支持目标格式时，需要通过 `libswscale` 转换，或使用匹配的硬件渲染路径。
+- 音频帧的采样格式、采样率和声道布局由输入决定。输出前通过 `SwrContext` 转换为音频设备接受的格式。
+- `SwsContext` 和 `SwrContext` 应按输入输出参数复用，仅在参数发生变化时重建。
 
-# 6. 像素格式与转换：不要在解码线程里做重活（除非必要）
-最佳实践：
-- 解码线程只负责产出原始 `AVFrame`（可能是 YUV420P / NV12 / P010 等）
-- 渲染前再做 `sws_scale`（软件）或走 GPU 路径（SDL texture / OpenGL / D3D11）
-- 如果你要“统一输出格式”，建议在独立的转换阶段处理，并且**缓存 `SwsContext`**，不要每帧创建/销毁。
+## 资源管理
 
-音频同理：
-- 用 `SwrContext` 重采样/重排/格式转换
-- 缓存 `SwrContext`，参数变化时再重建
-
----
-
-# 7. 错误处理与资源生命周期：建议统一封装
-最佳实践（C++）：
-- 用 RAII 封装 `AVFormatContext`、`AVCodecContext`、`AVPacket`、`AVFrame`
-- 所有 FFmpeg API 的返回值都用 `av_strerror` 打日志（便于定位）
-- 对 `EAGAIN/EOF` 做“分支处理”，不要当作普通错误
-
----
-
-# 8. 你如果要我按你仓库落地：我需要你确认 3 件事
-你现在的工程结构里有 `video_decode_service`、SDL 渲染器等。我可以按“最佳实践”把解码主循环、队列、flush、PTS 统一这些落到你现有代码里，但我需要你确认：
-
-1. **你要支持音频吗？**（当前仓库看起来偏视频渲染；是否已有音频管线？）  
-2. **目标是本地文件播放还是网络流（RTSP/HTTP）？**（影响探测/缓冲策略）  
-3. **你用软件解码还是要硬解（D3D11VA/NVDEC/QSV）？**（影响 `AVHWDeviceContext` 相关流程）
-
-你回我这 3 点，我就可以按你现有 `include/main/decode_mp4.hpp` / `source/main/decode_mp4.cpp` / `service/video_decode_service.*` 的结构，把“最佳实践版本”的解码流程整理成你项目可直接用的实现。  
-
-# 状态
-- **已完成**：给出 FFmpeg 7.x 解码流程的工程最佳实践要点（状态机、flush、PTS、线程模型、队列、转换与资源管理）。  
-- **待确认**：你的目标场景（音频/网络/硬解）以便进一步针对性落地到你的代码库。
+`AVFormatContext`、`AVCodecContext`、`AVPacket` 和 `AVFrame` 的释放函数不同，所有权边界需要由封装类型明确表达。项目中的具体封装见 [FFmpeg 对象与封装边界](FFmpeg对象与封装边界.md)。
